@@ -1,0 +1,36 @@
+cat << 'EOF' > .gitignore
+# Environnement virtuel
+venv/
+.env/
+
+# Fichiers Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Fichiers temporaires
+*.log
+*.sqlite3
+
+# Données générées
+data/imdb.db
+
+# MongoDB data (gros fichiers, spécifiques à ta machine)
+data/mongo/standalone/
+data/mongo/db-1/
+data/mongo/db-2/
+data/mongo/db-3/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Fichiers IDE/OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Static compilé éventuellement
+staticfiles/
+EOF
