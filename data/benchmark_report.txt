@@ -1,0 +1,44 @@
+======================================================================
+RAPPORT DE BENCHMARK - Phase 1.4
+======================================================================
+
+Date: Fri Dec 12 00:55:01 2025
+Base de données: data/imdb.db
+Taille initiale: 222.0 Mo
+Taille finale: 222.0 Mo
+Augmentation: 0.0 o (+0.0%)
+
+RÉSULTATS DÉTAILLÉS:
+----------------------------------------------------------------------
+Q1: Filmographie acteur
+  Avant: 710.59 ms | Après: 809.61 ms | Gain: -13.9%
+
+Q2: Top N films par genre/période
+  Avant: 49.54 ms | Après: 54.65 ms | Gain: -10.3%
+
+Q3: Acteurs multi-rôles
+  Avant: 971.29 ms | Après: 1235.95 ms | Gain: -27.2%
+
+Q4: Collaborations acteur/réalisateurs
+  Avant: 1603.22 ms | Après: 1917.68 ms | Gain: -19.6%
+
+Q5: Genres populaires
+  Avant: 274.63 ms | Après: 456.73 ms | Gain: -66.3%
+
+Q6: Carrière par décennie
+  Avant: 1671.65 ms | Après: 2318.22 ms | Gain: -38.7%
+
+Q7: Top 3 par genre (window)
+  Avant: 641.03 ms | Après: 682.94 ms | Gain: -6.5%
+
+Q8: Carrières propulsées
+  Avant: 157.96 ms | Après: 163.04 ms | Gain: -3.2%
+
+Q9: Top réalisateurs
+  Avant: 328.37 ms | Après: 291.29 ms | Gain: +11.3%
+
+STATISTIQUES:
+- Gain moyen: -19.4%
+- Requêtes améliorées: 1/9
+- Temps moyen avant: 712.03 ms
+- Temps moyen après: 881.12 ms
