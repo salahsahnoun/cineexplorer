@@ -1,725 +1,780 @@
-from pymongo import MongoClient
-import time
 import sqlite3
-from datetime import datetime
+import time
+from pymongo import MongoClient
+from pathlib import Path
 
-class IMDBMongoQueries:
-    def __init__(self):
-        self.client = MongoClient('localhost', 27017)
-        self.db = self.client['imdb_flat']
-        self.sqlite_conn = sqlite3.connect('./data/imdb.db')
-        print("🔌 Connecté à MongoDB (imdb_flat) et SQLite")
-    
-    def query_1_filmography(self, actor_name="Tom Hanks"):
-        """1. Filmographie d'un acteur - MongoDB"""
-        print(f"\n🎬 1. Filmographie MongoDB: {actor_name}")
-        start = time.time()
+class IMDBQueriesOptimized:
+    def __init__(self, mongo_db_name='imdb_flat', sqlite_path='./data/imdb.db'):
+        """
+        Initialise les connexions aux bases de données et configure les index.
+        """
+        self.client = MongoClient('localhost', 27017, serverSelectionTimeoutMS=5000)
+        self.db = self.client[mongo_db_name]
         
-        pipeline = [
-            {"$match": {"primaryName": {"$regex": actor_name, "$options": "i"}}},
-            {"$lookup": {
-                "from": "principals",
-                "localField": "pid",
-                "foreignField": "pid",
-                "as": "roles"
-            }},
-            {"$unwind": "$roles"},
-            {"$lookup": {
-                "from": "movies",
-                "localField": "roles.mid",
-                "foreignField": "mid",
-                "as": "movie_info"
-            }},
-            {"$unwind": "$movie_info"},
-            {"$lookup": {
-                "from": "characters",
-                "let": {"pid": "$pid", "mid": "$roles.mid"},
+        # Vérifier si MongoDB est accessible
+        try:
+            self.client.admin.command('ping')
+        except Exception as e:
+            print(f"❌ MongoDB non accessible: {e}")
+            print("Lancez MongoDB avec: mongod --dbpath ./data/mongo/standalone")
+            raise
+        
+        # Connexion SQLite
+        self.sqlite_conn = sqlite3.connect(sqlite_path)
+        self.sqlite_conn.row_factory = sqlite3.Row
+        
+        print("🎬 PHASE 2 - REQUÊTES OPTIMISÉES MONGODB vs SQLITE")
+        print("="*70)
+        
+        self._setup_indexes()
+        print("✅ Connexions établies et index configurés")
+    
+    def _setup_indexes(self):
+        """Configure les index optimaux pour MongoDB."""
+        print("⚙️  Configuration des index MongoDB...")
+        
+        index_configs = {
+            "persons": [
+                [("pid", 1)], 
+                [("primaryName", 1)],
+                [("primaryName", "text")]
+            ],
+            "movies": [
+                [("mid", 1)], 
+                [("startYear", 1)],
+                [("primaryTitle", 1)],
+                [("startYear", 1), ("primaryTitle", 1)]
+            ],
+            "principals": [
+                [("pid", 1)], 
+                [("mid", 1)],
+                [("pid", 1), ("mid", 1)],
+                [("category", 1)],
+                [("mid", 1), ("category", 1)]
+            ],
+            "ratings": [
+                [("mid", 1)], 
+                [("averageRating", -1)],
+                [("numVotes", -1)],
+                [("averageRating", -1), ("numVotes", -1)]
+            ],
+            "genres": [
+                [("mid", 1)], 
+                [("genre", 1)],
+                [("genre", 1), ("mid", 1)]
+            ],
+            "directors": [
+                [("mid", 1)], 
+                [("pid", 1)],
+                [("pid", 1), ("mid", 1)]
+            ],
+            "characters": [
+                [("mid", 1)], 
+                [("pid", 1)],
+                [("mid", 1), ("pid", 1)],
+                [("name", 1)]
+            ],
+            "writers": [
+                [("mid", 1)], 
+                [("pid", 1)]
+            ]
+        }
+        
+        total_indexes = 0
+        for collection, indexes in index_configs.items():
+            if collection in self.db.list_collection_names():
+                for idx in indexes:
+                    try:
+                        self.db[collection].create_index(idx)
+                        total_indexes += 1
+                    except Exception as e:
+                        print(f"  ⚠️  Erreur index {collection}: {e}")
+        
+        print(f"✅ {total_indexes} index créés/optimisés")
+    
+    def benchmark_query(self, q_id, description, mongo_pipeline, sql_query, params=()):
+        """
+        Exécute et compare une requête entre MongoDB et SQLite.
+        """
+        print(f"\n{'='*70}")
+        print(f"🔍 {q_id} : {description}")
+        print(f"{'='*70}")
+        
+        # MongoDB
+        mongo_time = 0
+        mongo_results_count = 0
+        mongo_success = False
+        
+        try:
+            start_m = time.perf_counter()
+            collection = mongo_pipeline["collection"]
+            pipeline = mongo_pipeline["pipeline"]
+            
+            cursor = self.db[collection].aggregate(
+                pipeline, 
+                allowDiskUse=True,
+                maxTimeMS=30000
+            )
+            mongo_results = list(cursor)
+            mongo_time = (time.perf_counter() - start_m) * 1000
+            mongo_results_count = len(mongo_results)
+            mongo_success = True
+            
+            print(f"   ✅ MongoDB : {mongo_time:>10.2f} ms | {mongo_results_count:>5} résultats")
+            
+        except Exception as e:
+            mongo_time = 30000
+            mongo_success = False
+            error_msg = str(e)[:80]
+            print(f"   ❌ MongoDB : TIMEOUT/ERREUR - {error_msg}")
+        
+        # SQLite
+        sqlite_time = 0
+        sqlite_results_count = 0
+        
+        try:
+            start_s = time.perf_counter()
+            cursor = self.sqlite_conn.cursor()
+            
+            if hasattr(self, '_last_query_time'):
+                cursor.execute("PRAGMA cache_size = 0")
+                cursor.execute("PRAGMA shrink_memory")
+            
+            cursor.execute(sql_query, params)
+            sqlite_results = cursor.fetchall()
+            sqlite_time = (time.perf_counter() - start_s) * 1000
+            sqlite_results_count = len(sqlite_results)
+            
+            print(f"   ✅ SQLite  : {sqlite_time:>10.2f} ms | {sqlite_results_count:>5} résultats")
+            
+        except Exception as e:
+            sqlite_time = 30000
+            error_msg = str(e)[:80]
+            print(f"   ❌ SQLite  : ERREUR - {error_msg}")
+        
+        # Analyse comparative
+        if mongo_success and sqlite_time < 30000 and mongo_time > 0 and sqlite_time > 0:
+            ratio = sqlite_time / mongo_time
+            if ratio < 0.7:
+                print(f"   🚀 MongoDB {1/ratio:.1f}x plus rapide")
+            elif ratio > 1.3:
+                print(f"   🚀 SQLite {ratio:.1f}x plus rapide")
+            else:
+                print(f"   ⚖️  Performances similaires (±30%)")
+        
+        # Vérification cohérence
+        if mongo_success and mongo_results_count != sqlite_results_count:
+            print(f"   ⚠️  Différence résultats: MongoDB={mongo_results_count}, SQLite={sqlite_results_count}")
+        
+        self._last_query_time = time.time()
+        
+        return {
+            "query_id": q_id,
+            "description": description,
+            "mongo_time": mongo_time,
+            "sqlite_time": sqlite_time,
+            "mongo_success": mongo_success,
+            "mongo_results": mongo_results_count,
+            "sqlite_results": sqlite_results_count
+        }
+    
+    def run_all_queries(self):
+        """Exécute les 9 requêtes optimisées."""
+        results = []
+        
+        # Q1: Filmographie d'un acteur
+        results.append(self.benchmark_query(
+            "Q1", "Filmographie de Tom Hanks",
+            {
+                "collection": "principals",
                 "pipeline": [
-                    {"$match": {
-                        "$expr": {
-                            "$and": [
-                                {"$eq": ["$pid", "$$pid"]},
-                                {"$eq": ["$mid", "$$mid"]}
-                            ]
-                        }
-                    }}
-                ],
-                "as": "character_info"
-            }},
-            {"$lookup": {
-                "from": "ratings",
-                "localField": "roles.mid",
-                "foreignField": "mid",
-                "as": "rating_info"
-            }},
-            {"$project": {
-                "title": "$movie_info.primaryTitle",
-                "year": "$movie_info.startYear",
-                "character": {"$arrayElemAt": ["$character_info.name", 0]},
-                "rating": {"$arrayElemAt": ["$rating_info.averageRating", 0]},
-                "votes": {"$arrayElemAt": ["$rating_info.numVotes", 0]}
-            }},
-            {"$sort": {"year": -1}},
-            {"$limit": 15}
-        ]
-        
-        results = list(self.db.persons.aggregate(pipeline))
-        elapsed = time.time() - start
-        
-        # Afficher quelques résultats
-        for i, film in enumerate(results[:5], 1):
-            char = film.get('character', 'N/A')
-            rating = film.get('rating', 'N/A')
-            print(f"   {i}. {film['title']} ({film['year']}) - {char} - ⭐{rating}")
-        
-        if len(results) > 5:
-            print(f"   ... et {len(results)-5} autres films")
-        
-        print(f"   ⏱️  MongoDB: {elapsed*1000:.2f} ms - {len(results)} résultats")
-        return results, elapsed
-    
-    def query_1_sqlite(self, actor_name="Tom Hanks"):
-        """1. Filmographie d'un acteur - SQLite (pour comparaison)"""
-        start = time.time()
-        cursor = self.sqlite_conn.cursor()
-        
-        query = """
-            SELECT m.primaryTitle, m.startYear, c.name, r.averageRating, r.numVotes
+                    {"$match": {"category": {"$in": ["actor", "actress"]}}},
+                    {"$lookup": {
+                        "from": "persons",
+                        "localField": "pid",
+                        "foreignField": "pid",
+                        "as": "person"
+                    }},
+                    {"$unwind": "$person"},
+                    {"$match": {"person.primaryName": "Tom Hanks"}},
+                    {"$lookup": {
+                        "from": "movies",
+                        "localField": "mid",
+                        "foreignField": "mid",
+                        "as": "movie"
+                    }},
+                    {"$unwind": "$movie"},
+                    {"$lookup": {
+                        "from": "ratings",
+                        "localField": "mid",
+                        "foreignField": "mid",
+                        "as": "rating"
+                    }},
+                    {"$unwind": {"path": "$rating", "preserveNullAndEmptyArrays": True}},
+                    {"$project": {
+                        "title": "$movie.primaryTitle",
+                        "year": "$movie.startYear",
+                        "character": "$job",
+                        "rating": {"$ifNull": ["$rating.averageRating", None]}
+                    }},
+                    {"$sort": {"year": -1}},
+                    {"$limit": 20}
+                ]
+            },
+            """
+            SELECT m.primaryTitle, m.startYear, pr.job, r.averageRating
             FROM persons p
             JOIN principals pr ON p.pid = pr.pid
             JOIN movies m ON pr.mid = m.mid
-            LEFT JOIN characters c ON p.pid = c.pid AND m.mid = c.mid
             LEFT JOIN ratings r ON m.mid = r.mid
-            WHERE p.primaryName LIKE ?
+            WHERE p.primaryName = ?
+            AND pr.category IN ('actor', 'actress')
             ORDER BY m.startYear DESC
-            LIMIT 15
-        """
+            LIMIT 20
+            """,
+            ("Tom Hanks",)
+        ))
         
-        cursor.execute(query, (f"%{actor_name}%",))
-        results = cursor.fetchall()
-        elapsed = time.time() - start
-        
-        print(f"   ⏱️  SQLite: {elapsed*1000:.2f} ms - {len(results)} résultats")
-        return results, elapsed
-    
-    def query_2_top_n_films(self, genre="Drama", start_year=1990, end_year=2000, n=10):
-        """2. Top N films d'un genre sur une période - MongoDB"""
-        print(f"\n🏆 2. Top {n} films {genre} ({start_year}-{end_year}) - MongoDB")
-        start = time.time()
-        
-        pipeline = [
-            {"$match": {"genre": genre}},
-            {"$lookup": {
-                "from": "movies",
-                "localField": "mid",
-                "foreignField": "mid",
-                "as": "movie_info"
-            }},
-            {"$unwind": "$movie_info"},
-            {"$match": {
-                "movie_info.startYear": {"$gte": start_year, "$lte": end_year},
-                "movie_info.titleType": "movie"
-            }},
-            {"$lookup": {
-                "from": "ratings",
-                "localField": "mid",
-                "foreignField": "mid",
-                "as": "rating_info"
-            }},
-            {"$unwind": "$rating_info"},
-            {"$match": {"rating_info.numVotes": {"$gt": 1000}}},
-            {"$project": {
-                "title": "$movie_info.primaryTitle",
-                "year": "$movie_info.startYear",
-                "rating": "$rating_info.averageRating",
-                "votes": "$rating_info.numVotes"
-            }},
-            {"$sort": {"rating": -1}},
-            {"$limit": n}
-        ]
-        
-        results = list(self.db.genres.aggregate(pipeline))
-        elapsed = time.time() - start
-        
-        for i, film in enumerate(results, 1):
-            print(f"   {i:2}. ⭐{film['rating']:.1f} - {film['title']} ({film['year']})")
-        
-        print(f"   ⏱️  MongoDB: {elapsed*1000:.2f} ms")
-        return results, elapsed
-    
-    def query_2_sqlite(self, genre="Drama", start_year=1990, end_year=2000, n=10):
-        """2. Top N films - SQLite"""
-        start = time.time()
-        cursor = self.sqlite_conn.cursor()
-        
-        query = """
+        # Q2: Top N films par genre sur période
+        results.append(self.benchmark_query(
+            "Q2", "Top 5 films Drama 1990-2000",
+            {
+                "collection": "movies",
+                "pipeline": [
+                    {"$match": {
+                        "startYear": {"$gte": 1990, "$lte": 2000},
+                        "titleType": "movie"
+                    }},
+                    {"$lookup": {
+                        "from": "genres",
+                        "localField": "mid",
+                        "foreignField": "mid",
+                        "as": "genre_info"
+                    }},
+                    {"$unwind": "$genre_info"},
+                    {"$match": {"genre_info.genre": "Drama"}},
+                    {"$lookup": {
+                        "from": "ratings",
+                        "localField": "mid",
+                        "foreignField": "mid",
+                        "as": "rating"
+                    }},
+                    {"$unwind": "$rating"},
+                    {"$match": {"rating.numVotes": {"$gt": 1000}}},
+                    {"$project": {
+                        "title": "$primaryTitle",
+                        "year": "$startYear",
+                        "rating": "$rating.averageRating",
+                        "votes": "$rating.numVotes"
+                    }},
+                    {"$sort": {"rating": -1, "votes": -1}},
+                    {"$limit": 5}
+                ]
+            },
+            """
             SELECT m.primaryTitle, m.startYear, r.averageRating, r.numVotes
-            FROM genres g
-            JOIN movies m ON g.mid = m.mid
+            FROM movies m
+            JOIN genres g ON m.mid = g.mid
             JOIN ratings r ON m.mid = r.mid
             WHERE g.genre = ?
             AND m.startYear BETWEEN ? AND ?
             AND m.titleType = 'movie'
             AND r.numVotes > 1000
-            ORDER BY r.averageRating DESC
-            LIMIT ?
-        """
+            ORDER BY r.averageRating DESC, r.numVotes DESC
+            LIMIT 5
+            """,
+            ("Drama", 1990, 2000)
+        ))
         
-        cursor.execute(query, (genre, start_year, end_year, n))
-        results = cursor.fetchall()
-        elapsed = time.time() - start
+        # Q3: Acteurs multi-rôles
+        results.append(self.benchmark_query(
+            "Q3", "Acteurs avec plusieurs rôles dans un film",
+            {
+                "collection": "characters",
+                "pipeline": [
+                    {"$group": {
+                        "_id": {"movie": "$mid", "actor": "$pid"},
+                        "role_count": {"$sum": 1},
+                        "characters": {"$push": "$name"}
+                    }},
+                    {"$match": {"role_count": {"$gt": 1}}},
+                    {"$lookup": {
+                        "from": "persons",
+                        "localField": "_id.actor",
+                        "foreignField": "pid",
+                        "as": "actor_info"
+                    }},
+                    {"$lookup": {
+                        "from": "movies",
+                        "localField": "_id.movie",
+                        "foreignField": "mid",
+                        "as": "movie_info"
+                    }},
+                    {"$unwind": "$actor_info"},
+                    {"$unwind": "$movie_info"},
+                    {"$project": {
+                        "actor": "$actor_info.primaryName",
+                        "movie": "$movie_info.primaryTitle",
+                        "year": "$movie_info.startYear",
+                        "multiple_roles": "$role_count",
+                        "characters": {"$slice": ["$characters", 3]}
+                    }},
+                    {"$sort": {"multiple_roles": -1, "actor": 1}},
+                    {"$limit": 10}
+                ]
+            },
+            """
+            SELECT p.primaryName, m.primaryTitle, m.startYear, COUNT(*) as role_count
+            FROM characters c
+            JOIN persons p ON c.pid = p.pid
+            JOIN movies m ON c.mid = m.mid
+            GROUP BY c.pid, c.mid
+            HAVING COUNT(*) > 1
+            ORDER BY role_count DESC, p.primaryName
+            LIMIT 10
+            """
+        ))
         
-        print(f"   ⏱️  SQLite: {elapsed*1000:.2f} ms")
-        return results, elapsed
+        # Q4: Collaborations réalisateurs-acteurs
+        results.append(self.benchmark_query(
+            "Q4", "Collaborations réalisateurs-acteurs",
+            {
+                "collection": "principals",
+                "pipeline": [
+                    {"$match": {"category": {"$in": ["actor", "actress"]}}},
+                    {"$lookup": {
+                        "from": "directors",
+                        "localField": "mid",
+                        "foreignField": "mid",
+                        "as": "directors"
+                    }},
+                    {"$unwind": "$directors"},
+                    {"$group": {
+                        "_id": {
+                            "actor_pid": "$pid",
+                            "director_pid": "$directors.pid"
+                        },
+                        "collaboration_count": {"$sum": 1}
+                    }},
+                    {"$match": {"collaboration_count": {"$gte": 3}}},
+                    {"$lookup": {
+                        "from": "persons",
+                        "localField": "_id.actor_pid",
+                        "foreignField": "pid",
+                        "as": "actor_info"
+                    }},
+                    {"$lookup": {
+                        "from": "persons",
+                        "localField": "_id.director_pid",
+                        "foreignField": "pid",
+                        "as": "director_info"
+                    }},
+                    {"$unwind": "$actor_info"},
+                    {"$unwind": "$director_info"},
+                    {"$project": {
+                        "actor": "$actor_info.primaryName",
+                        "director": "$director_info.primaryName",
+                        "collaboration_count": 1
+                    }},
+                    {"$sort": {"collaboration_count": -1}},
+                    {"$limit": 10}
+                ]
+            },
+            """
+            SELECT 
+                pa.primaryName as actor,
+                pd.primaryName as director,
+                COUNT(*) as collaboration_count
+            FROM principals pr
+            JOIN directors d ON pr.mid = d.mid
+            JOIN persons pa ON pr.pid = pa.pid
+            JOIN persons pd ON d.pid = pd.pid
+            WHERE pr.category IN ('actor', 'actress')
+            GROUP BY pr.pid, d.pid
+            HAVING COUNT(*) >= 3
+            ORDER BY collaboration_count DESC
+            LIMIT 10
+            """
+        ))
+        
+        # Q5: Genres populaires
+        results.append(self.benchmark_query(
+            "Q5", "Genres populaires (note > 7.0, > 50 films, votes > 10k)",
+            {
+                "collection": "ratings",
+                "pipeline": [
+                    {"$match": {"numVotes": {"$gt": 10000}}},
+                    {"$lookup": {
+                        "from": "genres",
+                        "localField": "mid",
+                        "foreignField": "mid",
+                        "as": "genres"
+                    }},
+                    {"$unwind": "$genres"},
+                    {"$group": {
+                        "_id": "$genres.genre",
+                        "avg_rating": {"$avg": "$averageRating"},
+                        "movie_count": {"$sum": 1}
+                    }},
+                    {"$match": {
+                        "avg_rating": {"$gt": 7.0},
+                        "movie_count": {"$gt": 50}
+                    }},
+                    {"$project": {
+                        "genre": "$_id",
+                        "average_rating": {"$round": ["$avg_rating", 2]},
+                        "movie_count": 1
+                    }},
+                    {"$sort": {"average_rating": -1, "movie_count": -1}}
+                ]
+            },
+            """
+            SELECT 
+                g.genre,
+                ROUND(AVG(r.averageRating), 2) as average_rating,
+                COUNT(DISTINCT g.mid) as movie_count
+            FROM ratings r
+            JOIN genres g ON r.mid = g.mid
+            WHERE r.numVotes > 10000
+            GROUP BY g.genre
+            HAVING AVG(r.averageRating) > 7.0
+               AND COUNT(DISTINCT g.mid) > 50
+            ORDER BY average_rating DESC, movie_count DESC
+            """
+        ))
+        
+        # Q6: Évolution carrière par décennie
+        results.append(self.benchmark_query(
+            "Q6", "Évolution carrière Tom Hanks par décennie",
+            {
+                "collection": "persons",
+                "pipeline": [
+                    {"$match": {"primaryName": "Tom Hanks"}},
+                    {"$lookup": {
+                        "from": "principals",
+                        "localField": "pid",
+                        "foreignField": "pid",
+                        "as": "career"
+                    }},
+                    {"$unwind": "$career"},
+                    {"$match": {"career.category": {"$in": ["actor", "actress"]}}},
+                    {"$lookup": {
+                        "from": "movies",
+                        "localField": "career.mid",
+                        "foreignField": "mid",
+                        "as": "movie"
+                    }},
+                    {"$unwind": "$movie"},
+                    {"$match": {"movie.titleType": "movie", "movie.startYear": {"$ne": None}}},
+                    {"$lookup": {
+                        "from": "ratings",
+                        "localField": "movie.mid",
+                        "foreignField": "mid",
+                        "as": "rating"
+                    }},
+                    {"$unwind": {"path": "$rating", "preserveNullAndEmptyArrays": True}},
+                    {"$addFields": {
+                        "decade": {
+                            "$subtract": [
+                                "$movie.startYear",
+                                {"$mod": ["$movie.startYear", 10]}
+                            ]
+                        },
+                        "movie_rating": {"$ifNull": ["$rating.averageRating", 0]}
+                    }},
+                    {"$group": {
+                        "_id": "$decade",
+                        "film_count": {"$sum": 1},
+                        "avg_rating": {"$avg": "$movie_rating"}
+                    }},
+                    {"$sort": {"_id": 1}},
+                    {"$project": {
+                        "decade": "$_id",
+                        "film_count": 1,
+                        "average_rating": {"$round": ["$avg_rating", 2]}
+                    }}
+                ]
+            },
+            """
+            SELECT 
+                (m.startYear - (m.startYear % 10)) as decade,
+                COUNT(*) as film_count,
+                ROUND(AVG(COALESCE(r.averageRating, 0)), 2) as average_rating
+            FROM persons p
+            JOIN principals pr ON p.pid = pr.pid
+            JOIN movies m ON pr.mid = m.mid
+            LEFT JOIN ratings r ON m.mid = r.mid
+            WHERE p.primaryName = ?
+            AND pr.category IN ('actor', 'actress')
+            AND m.titleType = 'movie'
+            AND m.startYear IS NOT NULL
+            GROUP BY decade
+            ORDER BY decade
+            """,
+            ("Tom Hanks",)
+        ))
+        
+        # Q7: Classement top 3 par genre
+        results.append(self.benchmark_query(
+            "Q7", "Top 3 films par genre",
+            {
+                "collection": "genres",
+                "pipeline": [
+                    {"$lookup": {
+                        "from": "movies",
+                        "localField": "mid",
+                        "foreignField": "mid",
+                        "as": "movie"
+                    }},
+                    {"$unwind": "$movie"},
+                    {"$match": {"movie.titleType": "movie"}},
+                    {"$lookup": {
+                        "from": "ratings",
+                        "localField": "mid",
+                        "foreignField": "mid",
+                        "as": "rating"
+                    }},
+                    {"$unwind": "$rating"},
+                    {"$match": {"rating.numVotes": {"$gt": 10000}}},
+                    {"$addFields": {
+                        "rating_val": "$rating.averageRating",
+                        "votes": "$rating.numVotes"
+                    }},
+                    {"$sort": {"genre": 1, "rating_val": -1, "votes": -1}},
+                    {"$group": {
+                        "_id": "$genre",
+                        "films": {
+                            "$push": {
+                                "title": "$movie.primaryTitle",
+                                "year": "$movie.startYear",
+                                "rating": "$rating_val",
+                                "votes": "$votes"
+                            }
+                        }
+                    }},
+                    {"$project": {
+                        "genre": "$_id",
+                        "top_films": {"$slice": ["$films", 3]}
+                    }},
+                    {"$unwind": "$top_films"},
+                    {"$project": {
+                        "genre": 1,
+                        "title": "$top_films.title",
+                        "year": "$top_films.year",
+                        "rating": "$top_films.rating",
+                        "rank": {"$add": [{"$indexOfArray": ["$films", "$top_films"]}, 1]}
+                    }},
+                    {"$sort": {"genre": 1, "rating": -1}},
+                    {"$limit": 15}
+                ]
+            },
+            """
+            WITH ranked_movies AS (
+                SELECT 
+                    g.genre,
+                    m.primaryTitle,
+                    m.startYear,
+                    r.averageRating,
+                    r.numVotes,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY g.genre 
+                        ORDER BY r.averageRating DESC, r.numVotes DESC
+                    ) as rank
+                FROM genres g
+                JOIN movies m ON g.mid = m.mid
+                JOIN ratings r ON m.mid = r.mid
+                WHERE r.numVotes > 10000
+                  AND m.titleType = 'movie'
+            )
+            SELECT genre, primaryTitle, startYear, averageRating, rank
+            FROM ranked_movies
+            WHERE rank <= 3
+            ORDER BY genre, rank
+            LIMIT 15
+            """
+        ))
+        
+        # Q8: Percée grâce à un film
+        results.append(self.benchmark_query(
+            "Q8", "Personnes ayant percé grâce à un film (>200k votes)",
+            {
+                "collection": "ratings",
+                "pipeline": [
+                    {"$match": {"numVotes": {"$gt": 200000}}},
+                    {"$lookup": {
+                        "from": "principals",
+                        "localField": "mid",
+                        "foreignField": "mid",
+                        "as": "contributors"
+                    }},
+                    {"$unwind": "$contributors"},
+                    {"$lookup": {
+                        "from": "persons",
+                        "localField": "contributors.pid",
+                        "foreignField": "pid",
+                        "as": "person_info"
+                    }},
+                    {"$unwind": "$person_info"},
+                    {"$group": {
+                        "_id": "$person_info.pid",
+                        "name": {"$first": "$person_info.primaryName"},
+                        "breakthrough_films": {"$addToSet": "$mid"},
+                        "total_votes": {"$sum": "$numVotes"}
+                    }},
+                    {"$project": {
+                        "person": "$name",
+                        "breakthrough_count": {"$size": "$breakthrough_films"},
+                        "total_votes": 1
+                    }},
+                    {"$sort": {"breakthrough_count": -1, "total_votes": -1}},
+                    {"$limit": 10}
+                ]
+            },
+            """
+            SELECT 
+                p.primaryName,
+                COUNT(DISTINCT r.mid) as breakthrough_count,
+                SUM(r.numVotes) as total_votes
+            FROM ratings r
+            JOIN principals pr ON r.mid = pr.mid
+            JOIN persons p ON pr.pid = p.pid
+            WHERE r.numVotes > 200000
+            GROUP BY p.pid, p.primaryName
+            ORDER BY breakthrough_count DESC, total_votes DESC
+            LIMIT 10
+            """
+        ))
+        
+        # Q9: Acteur-Réalisateur
+        results.append(self.benchmark_query(
+            "Q9", "Personnes à la fois acteur et réalisateur",
+            {
+                "collection": "persons",
+                "pipeline": [
+                    {"$lookup": {
+                        "from": "principals",
+                        "localField": "pid",
+                        "foreignField": "pid",
+                        "as": "acting_roles"
+                    }},
+                    {"$match": {"acting_roles.category": {"$in": ["actor", "actress"]}}},
+                    {"$lookup": {
+                        "from": "directors",
+                        "localField": "pid",
+                        "foreignField": "pid",
+                        "as": "directing_roles"
+                    }},
+                    {"$match": {"directing_roles.0": {"$exists": True}}},
+                    {"$project": {
+                        "name": "$primaryName",
+                        "acting_count": {"$size": "$acting_roles"},
+                        "directing_count": {"$size": "$directing_roles"}
+                    }},
+                    {"$sort": {"acting_count": -1, "directing_count": -1}},
+                    {"$limit": 10}
+                ]
+            },
+            """
+            SELECT 
+                p.primaryName,
+                COUNT(DISTINCT pr.mid) as acting_count,
+                COUNT(DISTINCT d.mid) as directing_count
+            FROM persons p
+            LEFT JOIN principals pr ON p.pid = pr.pid AND pr.category IN ('actor', 'actress')
+            LEFT JOIN directors d ON p.pid = d.pid
+            GROUP BY p.pid, p.primaryName
+            HAVING COUNT(DISTINCT pr.mid) > 0 AND COUNT(DISTINCT d.mid) > 0
+            ORDER BY acting_count DESC, directing_count DESC
+            LIMIT 10
+            """
+        ))
+        
+        return results
     
-    def query_3_multi_role_actors(self):
-        """3. Acteurs avec plusieurs rôles dans un même film - MongoDB"""
-        print(f"\n🎭 3. Acteurs multi-rôles dans un film - MongoDB")
-        start = time.time()
+    def print_summary(self, results):
+        """Affiche un résumé des résultats."""
+        print(f"\n{'='*70}")
+        print("📊 RÉSUMÉ DES RÉSULTATS")
+        print(f"{'='*70}")
         
-        pipeline = [
-            {"$group": {
-                "_id": {"movie_id": "$mid", "person_id": "$pid"},
-                "role_count": {"$sum": 1},
-                "characters": {"$push": "$name"}
-            }},
-            {"$match": {"role_count": {"$gt": 1}}},
-            {"$lookup": {
-                "from": "persons",
-                "localField": "_id.person_id",
-                "foreignField": "pid",
-                "as": "actor_info"
-            }},
-            {"$lookup": {
-                "from": "movies",
-                "localField": "_id.movie_id",
-                "foreignField": "mid",
-                "as": "movie_info"
-            }},
-            {"$unwind": "$actor_info"},
-            {"$unwind": "$movie_info"},
-            {"$project": {
-                "actor": "$actor_info.primaryName",
-                "movie": "$movie_info.primaryTitle",
-                "year": "$movie_info.startYear",
-                "multiple_roles": "$role_count",
-                "characters": {"$slice": ["$characters", 3]}
-            }},
-            {"$sort": {"multiple_roles": -1, "year": -1}},
-            {"$limit": 10}
-        ]
+        successful_mongo = [r for r in results if r["mongo_success"]]
+        mongo_times = [r["mongo_time"] for r in successful_mongo]
+        sqlite_times = [r["sqlite_time"] for r in results]
         
-        results = list(self.db.characters.aggregate(pipeline))
-        elapsed = time.time() - start
+        avg_mongo = sum(mongo_times) / len(mongo_times) if mongo_times else 0
+        avg_sqlite = sum(sqlite_times) / len(sqlite_times) if sqlite_times else 0
         
-        for i, actor in enumerate(results, 1):
-            print(f"   {i:2}. {actor['actor']} - {actor['movie']} ({actor['year']})")
-            print(f"      👥 {actor['multiple_roles']} rôles: {', '.join(actor['characters'][:2])}")
+        print(f"Requêtes MongoDB réussies: {len(successful_mongo)}/9")
+        print(f"Temps moyen MongoDB: {avg_mongo/1000:.3f} secondes")
+        print(f"Temps moyen SQLite: {avg_sqlite/1000:.3f} secondes")
         
-        print(f"   ⏱️  MongoDB: {elapsed*1000:.2f} ms - {len(results)} acteurs")
-        return results, elapsed
-    
-    def query_4_director_actor_collaborations(self, actor_name="Tom Hanks"):
-        """4. Réalisateurs ayant travaillé avec un acteur - MongoDB"""
-        print(f"\n🤝 4. Collaborations réalisateurs avec: {actor_name} - MongoDB")
-        start = time.time()
-        
-        pipeline = [
-            {"$match": {"primaryName": {"$regex": actor_name, "$options": "i"}}},
-            {"$lookup": {
-                "from": "principals",
-                "localField": "pid",
-                "foreignField": "pid",
-                "as": "actor_movies"
-            }},
-            {"$unwind": "$actor_movies"},
-            {"$lookup": {
-                "from": "directors",
-                "localField": "actor_movies.mid",
-                "foreignField": "mid",
-                "as": "film_directors"
-            }},
-            {"$unwind": "$film_directors"},
-            {"$lookup": {
-                "from": "persons",
-                "localField": "film_directors.pid",
-                "foreignField": "pid",
-                "as": "director_info"
-            }},
-            {"$unwind": "$director_info"},
-            {"$group": {
-                "_id": "$director_info.primaryName",
-                "collaboration_count": {"$sum": 1},
-                "movies": {"$addToSet": "$actor_movies.mid"}
-            }},
-            {"$project": {
-                "director": "$_id",
-                "collaborations": "$collaboration_count",
-                "movie_count": {"$size": "$movies"},
-                "_id": 0
-            }},
-            {"$sort": {"collaborations": -1}},
-            {"$limit": 10}
-        ]
-        
-        results = list(self.db.persons.aggregate(pipeline))
-        elapsed = time.time() - start
-        
-        for i, collab in enumerate(results, 1):
-            print(f"   {i:2}. {collab['director']}: {collab['collaborations']} film(s)")
-        
-        print(f"   ⏱️  MongoDB: {elapsed*1000:.2f} ms")
-        return results, elapsed
-    
-    def query_5_popular_genres(self):
-        """5. Genres populaires (moyenne > 7.0 et > 50 films) - MongoDB"""
-        print(f"\n📊 5. Genres populaires (note > 7.0, > 50 films) - MongoDB")
-        start = time.time()
-        
-        pipeline = [
-            {"$lookup": {
-                "from": "ratings",
-                "localField": "mid",
-                "foreignField": "mid",
-                "as": "rating_info"
-            }},
-            {"$unwind": "$rating_info"},
-            {"$match": {"rating_info.numVotes": {"$gt": 10000}}},
-            {"$group": {
-                "_id": "$genre",
-                "avg_rating": {"$avg": "$rating_info.averageRating"},
-                "movie_count": {"$sum": 1}
-            }},
-            {"$match": {
-                "avg_rating": {"$gt": 7.0},
-                "movie_count": {"$gt": 50}
-            }},
-            {"$sort": {"avg_rating": -1}},
-            {"$project": {
-                "genre": "$_id",
-                "average_rating": {"$round": ["$avg_rating", 2]},
-                "movie_count": 1,
-                "_id": 0
-            }}
-        ]
-        
-        results = list(self.db.genres.aggregate(pipeline))
-        elapsed = time.time() - start
-        
-        for i, genre in enumerate(results, 1):
-            print(f"   {i:2}. {genre['genre']:15} ⭐{genre['average_rating']:.2f} ({genre['movie_count']} films)")
-        
-        print(f"   ⏱️  MongoDB: {elapsed*1000:.2f} ms")
-        return results, elapsed
-    
-    def query_6_actor_career_evolution(self, actor_name="Tom Hanks"):
-        """6. Évolution de carrière par décennie - MongoDB"""
-        print(f"\n📈 6. Évolution carrière: {actor_name} - MongoDB")
-        start = time.time()
-        
-        pipeline = [
-            {"$match": {"primaryName": {"$regex": actor_name, "$options": "i"}}},
-            {"$lookup": {
-                "from": "principals",
-                "localField": "pid",
-                "foreignField": "pid",
-                "as": "career"
-            }},
-            {"$unwind": "$career"},
-            {"$lookup": {
-                "from": "movies",
-                "localField": "career.mid",
-                "foreignField": "mid",
-                "as": "movie_info"
-            }},
-            {"$unwind": "$movie_info"},
-            {"$lookup": {
-                "from": "ratings",
-                "localField": "career.mid",
-                "foreignField": "mid",
-                "as": "rating_info"
-            }},
-            {"$unwind": {"path": "$rating_info", "preserveNullAndEmptyArrays": True}},
-            {"$match": {"movie_info.titleType": "movie"}},
-            {"$addFields": {
-                "decade": {
-                    "$subtract": [
-                        "$movie_info.startYear",
-                        {"$mod": ["$movie_info.startYear", 10]}
-                    ]
-                }
-            }},
-            {"$group": {
-                "_id": "$decade",
-                "film_count": {"$sum": 1},
-                "avg_rating": {"$avg": "$rating_info.averageRating"}
-            }},
-            {"$sort": {"_id": 1}},
-            {"$project": {
-                "decade": "$_id",
-                "film_count": 1,
-                "average_rating": {"$round": ["$avg_rating", 2]},
-                "_id": 0
-            }}
-        ]
-        
-        results = list(self.db.persons.aggregate(pipeline))
-        elapsed = time.time() - start
-        
-        for decade in results:
-            if decade['decade']:
-                rating = decade.get('average_rating', 'N/A')
-                print(f"   {decade['decade']}s: {decade['film_count']} films, ⭐{rating}")
-        
-        print(f"   ⏱️  MongoDB: {elapsed*1000:.2f} ms")
-        return results, elapsed
-    
-    def query_7_genre_ranking(self):
-        """7. Classement par genre : top 3 films par genre - MongoDB"""
-        print(f"\n🥇 7. Top 3 films par genre - MongoDB")
-        start = time.time()
-        
-        pipeline = [
-            {"$lookup": {
-                "from": "movies",
-                "localField": "mid",
-                "foreignField": "mid",
-                "as": "movie_info"
-            }},
-            {"$unwind": "$movie_info"},
-            {"$lookup": {
-                "from": "ratings",
-                "localField": "mid",
-                "foreignField": "mid",
-                "as": "rating_info"
-            }},
-            {"$unwind": "$rating_info"},
-            {"$match": {
-                "rating_info.numVotes": {"$gt": 10000},
-                "movie_info.titleType": "movie"
-            }},
-            {"$addFields": {
-                "rating": "$rating_info.averageRating",
-                "title": "$movie_info.primaryTitle",
-                "year": "$movie_info.startYear",
-                "votes": "$rating_info.numVotes"
-            }},
-            {"$sort": {"genre": 1, "rating": -1}},
-            {"$group": {
-                "_id": "$genre",
-                "films": {"$push": {
-                    "title": "$title",
-                    "year": "$year",
-                    "rating": "$rating",
-                    "votes": "$votes"
-                }}
-            }},
-            {"$project": {
-                "genre": "$_id",
-                "top_films": {"$slice": ["$films", 3]},
-                "_id": 0
-            }},
-            {"$sort": {"genre": 1}},
-            {"$limit": 5}
-        ]
-        
-        results = list(self.db.genres.aggregate(pipeline))
-        elapsed = time.time() - start
-        
-        for genre_data in results:
-            print(f"\n   🎞️  {genre_data['genre']}:")
-            for i, film in enumerate(genre_data['top_films'], 1):
-                print(f"      {i}. ⭐{film['rating']:.1f} - {film['title']} ({film['year']})")
-        
-        print(f"\n   ⏱️  MongoDB: {elapsed*1000:.2f} ms")
-        return results, elapsed
-    
-    def query_8_career_breakthrough(self):
-        """8. Personnes ayant percé grâce à un film - MongoDB"""
-        print(f"\n🚀 8. Percées de carrière (films > 200k votes) - MongoDB")
-        start = time.time()
-        
-        pipeline = [
-            {"$match": {"numVotes": {"$gt": 200000}}},
-            {"$lookup": {
-                "from": "principals",
-                "localField": "mid",
-                "foreignField": "mid",
-                "as": "contributors"
-            }},
-            {"$unwind": "$contributors"},
-            {"$lookup": {
-                "from": "persons",
-                "localField": "contributors.pid",
-                "foreignField": "pid",
-                "as": "person_info"
-            }},
-            {"$unwind": "$person_info"},
-            {"$group": {
-                "_id": "$person_info.pid",
-                "name": {"$first": "$person_info.primaryName"},
-                "breakthrough_films": {"$addToSet": "$mid"},
-                "breakthrough_count": {"$sum": 1}
-            }},
-            {"$project": {
-                "person": "$name",
-                "breakthrough_count": 1,
-                "_id": 0
-            }},
-            {"$sort": {"breakthrough_count": -1}},
-            {"$limit": 10}
-        ]
-        
-        results = list(self.db.ratings.aggregate(pipeline))
-        elapsed = time.time() - start
-        
-        for i, person in enumerate(results, 1):
-            print(f"   {i:2}. {person['person']}: {person['breakthrough_count']} film(s) à succès")
-        
-        print(f"   ⏱️  MongoDB: {elapsed*1000:.2f} ms")
-        return results, elapsed
-    
-    def query_9_custom_query(self):
-        """9. Requête libre : Films où une personne est à la fois acteur et réalisateur - MongoDB"""
-        print(f"\n🎥 9. Personnes acteur-réalisateur - MongoDB")
-        start = time.time()
-        
-        pipeline = [
-            {"$lookup": {
-                "from": "directors",
-                "localField": "mid",
-                "foreignField": "mid",
-                "as": "directors"
-            }},
-            {"$unwind": "$directors"},
-            {"$lookup": {
-                "from": "principals",
-                "localField": "mid",
-                "foreignField": "mid",
-                "as": "actors"
-            }},
-            {"$unwind": "$actors"},
-            {"$match": {
-                "$expr": {"$eq": ["$directors.pid", "$actors.pid"]},
-                "actors.category": {"$in": ["actor", "actress"]}
-            }},
-            {"$lookup": {
-                "from": "persons",
-                "localField": "directors.pid",
-                "foreignField": "pid",
-                "as": "person_info"
-            }},
-            {"$unwind": "$person_info"},
-            {"$lookup": {
-                "from": "ratings",
-                "localField": "mid",
-                "foreignField": "mid",
-                "as": "rating_info"
-            }},
-            {"$unwind": {"path": "$rating_info", "preserveNullAndEmptyArrays": True}},
-            {"$group": {
-                "_id": "$person_info.primaryName",
-                "movies": {"$addToSet": "$primaryTitle"},
-                "average_rating": {"$avg": "$rating_info.averageRating"},
-                "movie_count": {"$sum": 1}
-            }},
-            {"$project": {
-                "person": "$_id",
-                "movie_count": 1,
-                "average_rating": {"$round": ["$average_rating", 2]},
-                "sample_movies": {"$slice": ["$movies", 2]},
-                "_id": 0
-            }},
-            {"$sort": {"movie_count": -1}},
-            {"$limit": 10}
-        ]
-        
-        results = list(self.db.movies.aggregate(pipeline))
-        elapsed = time.time() - start
-        
-        for i, person in enumerate(results, 1):
-            print(f"   {i:2}. {person['person']}: {person['movie_count']} film(s)")
-            if person['sample_movies']:
-                print(f"      Ex: {', '.join(person['sample_movies'][:2])}")
-        
-        print(f"   ⏱️  MongoDB: {elapsed*1000:.2f} ms")
-        return results, elapsed
-    
-    def compare_mongo_vs_sqlite(self):
-        """Compare les performances MongoDB vs SQLite pour les 9 requêtes"""
-        print("="*80)
-        print("📊 COMPARAISON MONGODB vs SQLITE - PERFORMANCES")
-        print("="*80)
-        
-        comparison_data = []
-        
-        # Requête 1
-        print("\n1. Filmographie d'un acteur:")
-        mongo_results, mongo_time = self.query_1_filmography("Tom Hanks")
-        sqlite_results, sqlite_time = self.query_1_sqlite("Tom Hanks")
-        
-        comparison_data.append({
-            "query": "Filmographie acteur",
-            "mongo_time": mongo_time,
-            "sqlite_time": sqlite_time,
-            "mongo_count": len(mongo_results),
-            "sqlite_count": len(sqlite_results)
-        })
-        
-        # Requête 2
-        print("\n2. Top films par genre:")
-        mongo_results, mongo_time = self.query_2_top_n_films("Drama", 1990, 2000, 5)
-        sqlite_results, sqlite_time = self.query_2_sqlite("Drama", 1990, 2000, 5)
-        
-        comparison_data.append({
-            "query": "Top films par genre",
-            "mongo_time": mongo_time,
-            "sqlite_time": sqlite_time,
-            "mongo_count": len(mongo_results),
-            "sqlite_count": len(sqlite_results)
-        })
-        
-        # Autres requêtes (simplifié)
-        queries = [
-            ("3. Acteurs multi-rôles", self.query_3_multi_role_actors),
-            ("4. Collaborations", lambda: self.query_4_director_actor_collaborations("Tom Hanks")),
-            ("5. Genres populaires", self.query_5_popular_genres),
-            ("6. Évolution carrière", lambda: self.query_6_actor_career_evolution("Tom Hanks")),
-            ("7. Classement genre", self.query_7_genre_ranking),
-            ("8. Percée carrière", self.query_8_career_breakthrough),
-            ("9. Acteur-Réalisateur", self.query_9_custom_query)
-        ]
-        
-        for name, query_func in queries:
-            print(f"\n{name}:")
-            results, query_time = query_func()
-            comparison_data.append({
-                "query": name,
-                "mongo_time": query_time,
-                "sqlite_time": None,  # Pas de comparaison SQLite pour ces requêtes
-                "mongo_count": len(results),
-                "sqlite_count": None
-            })
-        
-        # Afficher le tableau comparatif
-        print("\n" + "="*80)
-        print("📈 TABLEAU COMPARATIF MONGODB vs SQLITE")
-        print("="*80)
-        print(f"{'Requête':30} | {'MongoDB (ms)':>12} | {'SQLite (ms)':>12} | {'Gain %':>10}")
-        print("-"*80)
-        
-        for data in comparison_data:
-            mongo_ms = data['mongo_time'] * 1000
-            sqlite_ms = data['sqlite_time'] * 1000 if data['sqlite_time'] else 0
-            
-            if data['sqlite_time']:
-                gain = ((sqlite_ms / mongo_ms) - 1) * 100 if mongo_ms > 0 else 0
-                gain_str = f"{gain:+.1f}%"
+        if avg_mongo > 0:
+            ratio = avg_sqlite / avg_mongo
+            print(f"Rapport SQLite/MongoDB: {ratio:.2f}")
+            if ratio > 1:
+                print(f"→ SQLite {ratio:.1f}x plus rapide en moyenne")
             else:
-                gain_str = "N/A"
-            
-            print(f"{data['query']:30} | {mongo_ms:>12.2f} | {sqlite_ms:>12.2f} | {gain_str:>10}")
+                print(f"→ MongoDB {1/ratio:.1f}x plus rapide en moyenne")
         
-        # Analyse
-        print("\n" + "="*80)
-        print("💡 ANALYSE DES RÉSULTATS")
-        print("="*80)
-        print("✅ MongoDB excelle pour:")
-        print("   - Documents structurés complexes")
-        print("   - Agrégations avancées avec $lookup")
-        print("   - Flexibilité du schéma")
-        print("\n✅ SQLite excelle pour:")
-        print("   - Requêtes relationnelles simples")
-        print("   - Jointures traditionnelles")
-        print("   - Transactions ACID")
-        print("\n📊 Conclusion:")
-        print("   MongoDB est plus adapté pour les requêtes analytiques complexes")
-        print("   SQLite reste performant pour les requêtes relationnelles basiques")
+        # Comptage des victoires
+        mongo_wins = 0
+        sqlite_wins = 0
+        ties = 0
         
-        return comparison_data
+        for res in results:
+            if res["mongo_success"] and res["mongo_time"] > 0 and res["sqlite_time"] > 0:
+                ratio = res["sqlite_time"] / res["mongo_time"]
+                if ratio < 0.7:
+                    mongo_wins += 1
+                elif ratio > 1.3:
+                    sqlite_wins += 1
+                else:
+                    ties += 1
+        
+        print(f"\n🏆 VICTOIRES PAR SYSTÈME:")
+        print(f"  MongoDB: {mongo_wins} requêtes")
+        print(f"  SQLite: {sqlite_wins} requêtes")
+        print(f"  Égalités: {ties} requêtes")
     
-    def generate_comparison_report(self, comparison_data):
-        """Génère un rapport texte des comparaisons"""
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
-        report = f"""
-RAPPORT DE COMPARAISON MONGODB vs SQLITE
-========================================
-Date: {timestamp}
-Base de données: imdb_flat (MongoDB) / imdb.db (SQLite)
-Total documents MongoDB: {self.db.movies.estimated_document_count():,} films
+    def close_connections(self):
+        """Ferme proprement les connexions aux bases de données."""
+        if hasattr(self, 'client'):
+            self.client.close()
+        if hasattr(self, 'sqlite_conn'):
+            self.sqlite_conn.close()
+        print("\n🔌 Connexions fermées")
 
-RÉSULTATS DES TESTS:
-{"-"*60}
-
-"""
-        
-        for i, data in enumerate(comparison_data, 1):
-            report += f"{i}. {data['query']}:\n"
-            report += f"   MongoDB: {data['mongo_time']*1000:.2f} ms, {data['mongo_count']} résultats\n"
-            if data['sqlite_time']:
-                report += f"   SQLite:  {data['sqlite_time']*1000:.2f} ms, {data['sqlite_count']} résultats\n"
-                gain = ((data['sqlite_time'] / data['mongo_time']) - 1) * 100 if data['mongo_time'] > 0 else 0
-                report += f"   Différence: {gain:+.1f}%\n"
-            report += "\n"
-        
-        report += """
-ANALYSE:
---------
-1. MongoDB montre de meilleures performances pour les agrégations complexes
-2. SQLite reste compétitif pour les requêtes relationnelles simples
-3. La flexibilité de MongoDB permet des requêtes plus expressives
-4. Les documents structurés MongoDB réduisent le besoin de jointures
-
-RECOMMANDATIONS:
-----------------
-- Utiliser MongoDB pour: analyses complexes, données semi-structurées
-- Utiliser SQLite pour: requêtes transactionnelles simples, schémas fixes
-"""
-        
-        # Sauvegarder le rapport
-        filename = f"./reports/phase2_comparison_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
-        with open(filename, 'w') as f:
-            f.write(report)
-        
-        print(f"\n📄 Rapport généré: {filename}")
-        return filename
 
 def main():
-    print("🔍 PHASE 2 - REQUÊTES MONGODB & COMPARAISON AVEC SQLITE")
-    print("="*80)
+    """Fonction principale exécutant le benchmark complet."""
+    print("🎬 LANCEMENT DU BENCHMARK COMPLET ET OPTIMISÉ")
+    print("="*70)
     
-    # Créer l'instance et exécuter les comparaisons
-    comparator = IMDBMongoQueries()
-    
-    print("\n" + "="*80)
-    print("🚀 EXÉCUTION DES TESTS DE PERFORMANCE")
-    print("="*80)
-    
-    # Exécuter la comparaison complète
-    comparison_data = comparator.compare_mongo_vs_sqlite()
-    
-    # Générer le rapport
-    report_file = comparator.generate_comparison_report(comparison_data)
-    
-    # Fermer les connexions
-    comparator.sqlite_conn.close()
-    comparator.client.close()
-    
-    print(f"\n✅ Phase 2 terminée avec succès!")
-    print(f"📊 {len(comparison_data)} requêtes comparées")
-    print(f"📄 Rapport disponible: {report_file}")
-    
-    # Résumé final
-    print("\n" + "="*80)
-    print("🎯 RÉSUMÉ POUR LE LIVRABLE 2")
-    print("="*80)
-    print("✅ Migration MongoDB réalisée: 11 collections, 2.3M documents")
-    print("✅ 9 requêtes MongoDB implémentées avec succès")
-    print("✅ Comparaison SQLite vs MongoDB effectuée")
-    print("✅ Analyse des avantages/inconvénients complétée")
-    print("✅ Rapport de performance généré")
-    print("\n📋 Le livrable 2 est PRÊT à être remis!")
+    try:
+        # Initialisation
+        benchmark = IMDBQueriesOptimized()
+        
+        # Exécution des requêtes
+        print("\n⚡ Exécution des 9 requêtes optimisées...")
+        results = benchmark.run_all_queries()
+        
+        # Résumé
+        benchmark.print_summary(results)
+        
+        print(f"\n{'='*70}")
+        print("✅ BENCHMARK TERMINÉ AVEC SUCCÈS !")
+        print(f"{'='*70}")
+        
+        # Fermeture propre
+        benchmark.close_connections()
+        
+    except KeyboardInterrupt:
+        print("\n\n⚠️  Benchmark interrompu par l'utilisateur")
+    except Exception as e:
+        print(f"\n❌ Erreur critique: {e}")
+        import traceback
+        traceback.print_exc()
+
 
 if __name__ == "__main__":
     main()
