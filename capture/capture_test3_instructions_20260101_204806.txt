@@ -1,0 +1,19 @@
+Capture: test3_instructions
+Heure: 2026-01-01 20:48:06
+============================================================
+PRIMARY À ARRÊTER:
+  Nom: localhost:27017
+  Port: 27017
+
+ÉTAPES MANUELLES:
+1. Trouver le terminal avec ce mongod
+   Commande: ps aux | grep 'mongod.*27017'
+2. Appuyer sur Ctrl+C dans ce terminal
+3. Observer les logs d'élection
+   Commande: tail -f data/mongo/db-1/mongod.log
+
+INDICATEURS D'ÉLECTION DANS LES LOGS:
+  - 'ELECTION' messages
+  - 'stepDown' ou 'new primary'
+  - Changement d'état des membres
+============================================================

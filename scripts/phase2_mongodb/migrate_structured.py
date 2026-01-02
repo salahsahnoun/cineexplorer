@@ -67,7 +67,7 @@ class T24MoviesComplete:
         if limit:
             print(f"⚠️  MODE TEST limit={limit}")
         else:
-            print("🚀 MODE COMPLET")
+            print("MODE COMPLET")
 
         pipeline = []
 

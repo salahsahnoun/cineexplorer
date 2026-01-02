@@ -44,7 +44,7 @@ def migrate_sqlite_to_mongodb_flat(batch_size: int = 10000) -> Dict[str, Any]:
         """)
         tables = [row[0] for row in cursor.fetchall()]
         
-        print(f"🎯 Migration de {len(tables)} tables vers MongoDB...")
+        print(f"Migration de {len(tables)} tables vers MongoDB...")
         print("="*60)
         
         for table_name in tqdm(tables, desc="Tables", unit="table"):
@@ -188,7 +188,7 @@ if __name__ == "__main__":
     # Configuration
     BATCH_SIZE = 50000  # Ajuster selon la RAM disponible
     
-    print("🚀 DÉMARRAGE DE LA MIGRATION SQLite → MongoDB")
+    print(" DÉMARRAGE DE LA MIGRATION SQLite → MongoDB")
     print("="*60)
     
     result = migrate_sqlite_to_mongodb_flat(batch_size=BATCH_SIZE)

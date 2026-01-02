@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        
+        .phase {
+            background: #3498db;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            display: inline-block;
+            margin: 20px 0;
+        }
+        
+        .task {
+            background: #2ecc71;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            display: inline-block;
+            margin-bottom: 30px;
+        }
+        
+        .links {
+            margin-top: 40px;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 15px 30px;
+            margin: 10px;
+            background: #9b59b6;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .btn-test {
+            background: #e74c3c;
+        }
+        
+        .btn-api {
+            background: #3498db;
+        }
+        
+        .instructions {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin-top: 30px;
+            border-left: 4px solid #3498db;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 {{ title }}</h1>
+        
+        <div class="phase">{{ phase }}</div>
+        <div class="task">{{ task }}</div>
+        
+        <p>Cette page marque le début de l'intégration Django avec les bases de données SQLite et MongoDB Replica Set.</p>
+        
+        <div class="instructions">
+            <h3>🎯 Objectifs du T3.3 :</h3>
+            <ul>
+                <li>✅ Configurer Django avec connexion SQLite</li>
+                <li>✅ Configurer Django avec connexion MongoDB Replica Set</li>
+                <li>✅ Créer les services d'accès aux bases</li>
+                <li>✅ Tester les connexions</li>
+                <li>✅ Préparer l'infrastructure pour la Phase 4</li>
+            </ul>
+        </div>
+        
+        <div class="links">
+            <a href="/test/" class="btn btn-test">🔧 Page de Test</a>
+            <a href="/api/test/" class="btn btn-api">📡 API Test (JSON)</a>
+        </div>
+        
+        <p style="margin-top: 40px; color: #7f8c8d; font-size: 0.9em;">
+            Projet CinéExplorer • Bases de Données Avancées • T3.3
+        </p>
+    </div>
+</body>
+</html>

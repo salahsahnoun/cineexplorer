@@ -1,0 +1,215 @@
+{
+  "rs": "rs0",
+  "ports": [
+    27017,
+    27018,
+    27019
+  ],
+  "tests": [
+    {
+      "id": 1,
+      "name": "Etat initial",
+      "primary": "localhost:27017",
+      "roles": {
+        "localhost:27017": "PRIMARY",
+        "localhost:27018": "SECONDARY",
+        "localhost:27019": "SECONDARY"
+      },
+      "raw": {
+        "set": "rs0",
+        "date": "2026-01-01 18:55:53.573000",
+        "myState": 1,
+        "term": 1,
+        "syncSourceHost": "",
+        "syncSourceId": -1,
+        "heartbeatIntervalMillis": 2000,
+        "majorityVoteCount": 2,
+        "writeMajorityCount": 2,
+        "votingMembersCount": 3,
+        "writableVotingMembersCount": 3,
+        "optimes": {
+          "lastCommittedOpTime": {
+            "ts": "Timestamp(1767293752, 1)",
+            "t": 1
+          },
+          "lastCommittedWallTime": "2026-01-01 18:55:52.578000",
+          "readConcernMajorityOpTime": {
+            "ts": "Timestamp(1767293752, 1)",
+            "t": 1
+          },
+          "appliedOpTime": {
+            "ts": "Timestamp(1767293752, 1)",
+            "t": 1
+          },
+          "durableOpTime": {
+            "ts": "Timestamp(1767293752, 1)",
+            "t": 1
+          },
+          "lastAppliedWallTime": "2026-01-01 18:55:52.578000",
+          "lastDurableWallTime": "2026-01-01 18:55:52.578000"
+        },
+        "lastStableRecoveryTimestamp": "Timestamp(1767293742, 1)",
+        "electionCandidateMetrics": {
+          "lastElectionReason": "electionTimeout",
+          "lastElectionDate": "2026-01-01 18:55:02.539000",
+          "electionTerm": 1,
+          "lastCommittedOpTimeAtElection": {
+            "ts": "Timestamp(1767293691, 1)",
+            "t": -1
+          },
+          "lastSeenOpTimeAtElection": {
+            "ts": "Timestamp(1767293691, 1)",
+            "t": -1
+          },
+          "numVotesNeeded": 2,
+          "priorityAtElection": 1.0,
+          "electionTimeoutMillis": 10000,
+          "numCatchUpOps": 0,
+          "newTermStartDate": "2026-01-01 18:55:02.567000",
+          "wMajorityWriteAvailabilityDate": "2026-01-01 18:55:03.723000"
+        },
+        "members": [
+          {
+            "_id": 0,
+            "name": "localhost:27017",
+            "health": 1.0,
+            "state": 1,
+            "stateStr": "PRIMARY",
+            "uptime": 83,
+            "optime": {
+              "ts": "Timestamp(1767293752, 1)",
+              "t": 1
+            },
+            "optimeDate": "2026-01-01 18:55:52",
+            "lastAppliedWallTime": "2026-01-01 18:55:52.578000",
+            "lastDurableWallTime": "2026-01-01 18:55:52.578000",
+            "syncSourceHost": "",
+            "syncSourceId": -1,
+            "infoMessage": "",
+            "electionTime": "Timestamp(1767293702, 1)",
+            "electionDate": "2026-01-01 18:55:02",
+            "configVersion": 1,
+            "configTerm": 1,
+            "self": true,
+            "lastHeartbeatMessage": ""
+          },
+          {
+            "_id": 1,
+            "name": "localhost:27018",
+            "health": 1.0,
+            "state": 2,
+            "stateStr": "SECONDARY",
+            "uptime": 62,
+            "optime": {
+              "ts": "Timestamp(1767293742, 1)",
+              "t": 1
+            },
+            "optimeDurable": {
+              "ts": "Timestamp(1767293742, 1)",
+              "t": 1
+            },
+            "optimeDate": "2026-01-01 18:55:42",
+            "optimeDurableDate": "2026-01-01 18:55:42",
+            "lastAppliedWallTime": "2026-01-01 18:55:52.578000",
+            "lastDurableWallTime": "2026-01-01 18:55:52.578000",
+            "lastHeartbeat": "2026-01-01 18:55:52.563000",
+            "lastHeartbeatRecv": "2026-01-01 18:55:52.059000",
+            "pingMs": 0,
+            "lastHeartbeatMessage": "",
+            "syncSourceHost": "localhost:27017",
+            "syncSourceId": 0,
+            "infoMessage": "",
+            "configVersion": 1,
+            "configTerm": 1
+          },
+          {
+            "_id": 2,
+            "name": "localhost:27019",
+            "health": 1.0,
+            "state": 2,
+            "stateStr": "SECONDARY",
+            "uptime": 62,
+            "optime": {
+              "ts": "Timestamp(1767293742, 1)",
+              "t": 1
+            },
+            "optimeDurable": {
+              "ts": "Timestamp(1767293742, 1)",
+              "t": 1
+            },
+            "optimeDate": "2026-01-01 18:55:42",
+            "optimeDurableDate": "2026-01-01 18:55:42",
+            "lastAppliedWallTime": "2026-01-01 18:55:52.578000",
+            "lastDurableWallTime": "2026-01-01 18:55:52.578000",
+            "lastHeartbeat": "2026-01-01 18:55:52.563000",
+            "lastHeartbeatRecv": "2026-01-01 18:55:52.059000",
+            "pingMs": 0,
+            "lastHeartbeatMessage": "",
+            "syncSourceHost": "localhost:27017",
+            "syncSourceId": 0,
+            "infoMessage": "",
+            "configVersion": 1,
+            "configTerm": 1
+          }
+        ],
+        "ok": 1.0,
+        "$clusterTime": {
+          "clusterTime": "Timestamp(1767293752, 1)",
+          "signature": {
+            "hash": "b'\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00'",
+            "keyId": 0
+          }
+        },
+        "operationTime": "Timestamp(1767293752, 1)"
+      }
+    },
+    {
+      "id": 2,
+      "name": "Ecriture + réplication",
+      "inserted_id": "6956c33944ffd6e2ca19d3fc",
+      "write_ms": 18.843272999220062,
+      "counts": {
+        "27017": 1,
+        "27018": 1,
+        "27019": 1
+      }
+    },
+    {
+      "id": 3,
+      "name": "Panne primary + élection",
+      "old_primary": "localhost:27017",
+      "new_primary": "localhost:27018",
+      "election_seconds": 18.059374999000283,
+      "roles_after": {
+        "localhost:27017": "(not reachable/healthy)",
+        "localhost:27018": "PRIMARY",
+        "localhost:27019": "SECONDARY"
+      }
+    },
+    {
+      "id": 4,
+      "name": "Ecriture après élection",
+      "write_ms": 997.4796409987903,
+      "inserted_id": "6956c34c44ffd6e2ca19d405"
+    },
+    {
+      "id": 5,
+      "name": "Lecture secondary",
+      "secondary_port": 27019,
+      "count": 2,
+      "read_ms": 1.765147000696743
+    },
+    {
+      "id": 6,
+      "name": "Resync",
+      "skipped": true,
+      "reason": "attach-only"
+    },
+    {
+      "id": 7,
+      "name": "Double panne",
+      "skipped": true,
+      "reason": "attach-only"
+    }
+  ]
+}

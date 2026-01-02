@@ -1,0 +1,8 @@
+Capture: test4_nouveau_primary
+Heure: 2026-01-01 20:56:52
+============================================================
+TEMPS D'ÉLECTION: 5.0 secondes
+NOUVEAU PRIMARY: localhost:27018
+DONNÉES ACCESSIBLES: OK
+NOMBRE DE DOCUMENTS: 3
+============================================================

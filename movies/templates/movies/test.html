@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>T3.3 - Test Django</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .card { border: 1px solid #ddd; padding: 20px; margin: 20px 0; border-radius: 8px; }
+        .success { background-color: #d4edda; }
+        .error { background-color: #f8d7da; }
+    </style>
+</head>
+<body>
+    <h1>T3.3 - Test des connexions Django</h1>
+    
+    <div class="card">
+        <h2>État des connexions</h2>
+        <ul>
+            <li>SQLite: {{ connections.sqlite }}</li>
+            <li>MongoDB Replica Set: {{ connections.mongo }}</li>
+        </ul>
+    </div>
+    
+    <div class="card">
+        <h2>Statistiques SQLite</h2>
+        {% if 'error' in sqlite_stats %}
+            <p>Erreur: {{ sqlite_stats.error }}</p>
+        {% else %}
+            <ul>
+                <li>Films totaux: {{ sqlite_stats.total_movies }}</li>
+                <li>Personnes totales: {{ sqlite_stats.total_persons }}</li>
+                <li>Meilleur film: {{ sqlite_stats.best_movie.title }} ({{ sqlite_stats.best_movie.rating }}/10)</li>
+            </ul>
+        {% endif %}
+    </div>
+    
+    <div class="card">
+        <h2>Statistiques MongoDB</h2>
+        {% if mongo_stats.replica_status == 'error' %}
+            <p>Erreur: {{ mongo_stats.error }}</p>
+        {% else %}
+            <ul>
+                <li>État: {{ mongo_stats.replica_status }}</li>
+                <li>Nom du set: {{ mongo_stats.set_name }}</li>
+                <li>Primary: {{ mongo_stats.primary }}</li>
+                <li>Films dans MongoDB: {{ mongo_stats.total_movies|default:"N/A" }}</li>
+            </ul>
+        {% endif %}
+    </div>
+    {% if mongo_stats.state_counts %}
+<div class="card">
+    <h2>📊 État des membres du Replica Set</h2>
+    <ul>
+        {% for state, count in mongo_stats.state_counts.items %}
+        <li>{{ state }}: {{ count }} membre(s)</li>
+        {% endfor %}
+    </ul>
+    <p><small>Total membres: {{ mongo_stats.total_members|default:"N/A" }}</small></p>
+</div>
+{% endif %}
+
+{% if not mongo_stats.data_imported %}
+<div class="card warning">
+    <h2>⚠️ Données MongoDB non importées</h2>
+    <p>Les collections MongoDB semblent vides ou non importées.</p>
+    <p>Pour importer les données :</p>
+    <pre>python3 scripts/phase3_replica/import_data.py</pre>
+    <p><em>Note : Ceci est optionnel pour T3.3</em></p>
+</div>
+{% endif %}
+    <div class="card">
+        <h2>API Test</h2>
+        <p><a href="/api/test/" target="_blank">Voir les données JSON</a></p>
+    </div>
+</body>
+</html>

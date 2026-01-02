@@ -1,0 +1,7 @@
+Capture: test2_ecriture
+Heure: 2026-01-01 20:48:04
+============================================================
+Documents insérés: 3
+Réplication vérifiée sur 2 port(s)
+Réplication complète: OUI
+============================================================
