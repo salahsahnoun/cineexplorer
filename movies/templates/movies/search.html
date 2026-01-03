@@ -1,0 +1,518 @@
+{% extends 'movies/base.html' %}
+{% load static %}
+
+{% block title %}Recherche - CinéExplorer{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- En-tête de recherche -->
+    <div class="row mb-5">
+        <div class="col-lg-8 mx-auto">
+            <div class="card shadow border-0">
+                <div class="card-body p-5">
+                    <h1 class="display-6 text-center mb-4">
+                        <i class="fas fa-search text-primary"></i> 
+                        Recherche avancée
+                    </h1>
+                    
+                    <form action="{% url 'search' %}" method="get" class="mb-4">
+                        <div class="input-group input-group-lg">
+                            <input type="text" class="form-control form-control-lg" 
+                                   name="q" value="{{ query|default:'' }}" 
+                                   placeholder="Rechercher un film, acteur ou réalisateur..." 
+                                   aria-label="Recherche">
+                            <button class="btn btn-primary" type="submit">
+                                <i class="fas fa-search"></i> Rechercher
+                            </button>
+                        </div>
+                        <div class="mt-3 text-center">
+                            <small class="text-muted">
+                                Recherche dans {{ total_items|default:"0"|intcomma }} éléments
+                                <span class="badge bg-success ms-2">SQLite</span>
+                            </small>
+                        </div>
+                    </form>
+                    
+                    <!-- Filtres rapides -->
+                    <div class="text-center">
+                        <p class="text-muted mb-2">Recherches rapides :</p>
+                        <div class="d-flex flex-wrap justify-content-center gap-2">
+                            <a href="?q=action" class="btn btn-sm btn-outline-secondary">Action</a>
+                            <a href="?q=comedy" class="btn btn-sm btn-outline-secondary">Comédie</a>
+                            <a href="?q=drama" class="btn btn-sm btn-outline-secondary">Drame</a>
+                            <a href="?q=2020" class="btn btn-sm btn-outline-secondary">Films 2020</a>
+                            <a href="?q=Christopher Nolan" class="btn btn-sm btn-outline-secondary">Christopher Nolan</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Résultats -->
+    {% if query %}
+    <div class="mb-4">
+        <h2 class="h4">
+            <i class="fas fa-search"></i> 
+            Résultats pour "{{ query }}"
+            <span class="badge bg-primary">{{ search_results.total }} résultat(s)</span>
+        </h2>
+        <p class="text-muted">
+            <i class="fas fa-film"></i> {{ search_results.total_movies }} film(s) • 
+            <i class="fas fa-user"></i> {{ search_results.total_persons }} personne(s)
+        </p>
+    </div>
+    
+    {% if search_results.total > 0 %}
+    <!-- Tabs pour résultats groupés -->
+    <ul class="nav nav-tabs mb-4" id="resultsTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="all-tab" data-bs-toggle="tab" 
+                    data-bs-target="#all" type="button" role="tab">
+                <i class="fas fa-th"></i> Tous 
+                <span class="badge bg-primary">{{ search_results.total }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="movies-tab" data-bs-toggle="tab" 
+                    data-bs-target="#movies" type="button" role="tab">
+                <i class="fas fa-film"></i> Films 
+                <span class="badge bg-primary">{{ search_results.total_movies }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="persons-tab" data-bs-toggle="tab" 
+                    data-bs-target="#persons" type="button" role="tab">
+                <i class="fas fa-user"></i> Personnes 
+                <span class="badge bg-success">{{ search_results.total_persons }}</span>
+            </button>
+        </li>
+    </ul>
+    
+    <div class="tab-content" id="resultsTabContent">
+        <!-- Onglet Tous -->
+        <div class="tab-pane fade show active" id="all" role="tabpanel">
+            <div class="row">
+                <!-- Films -->
+                {% if search_results.movies %}
+                <div class="col-12 mb-4">
+                    <h5 class="mb-3 border-bottom pb-2">
+                        <i class="fas fa-film text-primary"></i> Films ({{ search_results.total_movies }})
+                    </h5>
+                    <div class="row">
+                        {% for movie in search_results.movies|slice:":6" %}
+                        <div class="col-md-6 col-lg-4 mb-4">
+                            <div class="card h-100 shadow-sm">
+                                <div class="row g-0">
+                                    <div class="col-md-4">
+                                        <div class="movie-poster h-100 d-flex align-items-center justify-content-center">
+                                            <i class="fas fa-film fa-2x"></i>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-8">
+                                        <div class="card-body">
+                                            <h5 class="card-title">{{ movie.title|truncatechars:30 }}</h5>
+                                            <p class="card-text">
+                                                <small class="text-muted">
+                                                    <i class="fas fa-calendar"></i> {{ movie.year|default:"N/A" }}
+                                                    {% if movie.titleType %}
+                                                    • <span class="badge bg-secondary">{{ movie.titleType }}</span>
+                                                    {% endif %}
+                                                </small>
+                                            </p>
+                                            {% if movie.rating %}
+                                            <div class="d-flex align-items-center mb-2">
+                                                <div class="progress flex-grow-1 me-2" style="height: 6px;">
+                                                    <div class="progress-bar bg-warning" 
+                                                         style="width: {% widthratio movie.rating 10 100 %}%">
+                                                    </div>
+                                                </div>
+                                                <span class="badge bg-warning text-dark">
+                                                    {{ movie.rating|floatformat:1 }}
+                                                </span>
+                                            </div>
+                                            {% endif %}
+                                            {% if movie.genres %}
+                                            <div class="mb-2">
+                                                {% for genre in movie.genres|slice:":2" %}
+                                                <span class="badge bg-light text-dark border">{{ genre }}</span>
+                                                {% endfor %}
+                                            </div>
+                                            {% endif %}
+                                            <div class="mt-auto">
+                                                <a href="{% url 'movie_detail' movie.id %}" 
+                                                   class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-eye"></i> Voir
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% if search_results.total_movies > 6 %}
+                    <div class="text-center mt-3">
+                        <a href="#movies" class="btn btn-outline-primary" data-bs-toggle="tab" data-bs-target="#movies">
+                            Voir tous les {{ search_results.total_movies }} films <i class="fas fa-arrow-right"></i>
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+                
+                <!-- Personnes -->
+                {% if search_results.persons %}
+                <div class="col-12">
+                    <h5 class="mb-3 border-bottom pb-2">
+                        <i class="fas fa-user text-success"></i> Personnes ({{ search_results.total_persons }})
+                    </h5>
+                    <div class="row">
+                        {% for person in search_results.persons|slice:":6" %}
+                        <div class="col-md-6 col-lg-4 mb-4">
+                            <div class="card h-100 shadow-sm">
+                                <div class="card-body text-center">
+                                    <div class="mb-3">
+                                        <div class="person-avatar mx-auto mb-3" 
+                                             style="width: 80px; height: 80px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                                                    border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                            <i class="fas fa-user fa-2x text-white"></i>
+                                        </div>
+                                        <h5 class="card-title">{{ person.name|truncatechars:25 }}</h5>
+                                        <p class="card-text">
+                                            <span class="badge bg-info">{{ person.main_role|default:"Acteur" }}</span>
+                                            {% if person.category and person.category != person.main_role %}
+                                            <span class="badge bg-secondary">{{ person.category }}</span>
+                                            {% endif %}
+                                        </p>
+                                    </div>
+                                    <div class="mt-auto">
+                                        {% if person.movie_count %}
+                                        <p class="text-muted mb-1">
+                                            <i class="fas fa-film"></i> 
+                                            {{ person.movie_count }} film(s)
+                                        </p>
+                                        {% endif %}
+                                        {% if person.birthYear %}
+                                        <p class="text-muted">
+                                            <i class="fas fa-birthday-cake"></i> 
+                                            Né en {{ person.birthYear }}
+                                            {% if person.deathYear %}
+                                            - {{ person.deathYear }}
+                                            {% endif %}
+                                        </p>
+                                        {% endif %}
+                                        <button class="btn btn-sm btn-outline-secondary mt-2" 
+                                                onclick="alert('Page détail personne à implémenter (Phase 4 bonus)')">
+                                            <i class="fas fa-info-circle"></i> Filmographie
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% if search_results.total_persons > 6 %}
+                    <div class="text-center mt-3">
+                        <a href="#persons" class="btn btn-outline-success" data-bs-toggle="tab" data-bs-target="#persons">
+                            Voir toutes les {{ search_results.total_persons }} personnes <i class="fas fa-arrow-right"></i>
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Onglet Films -->
+        <div class="tab-pane fade" id="movies" role="tabpanel">
+            {% if search_results.movies %}
+            <div class="row">
+                {% for movie in search_results.movies %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100 shadow-sm">
+                        <div class="row g-0">
+                            <div class="col-md-4">
+                                <div class="movie-poster h-100 d-flex align-items-center justify-content-center">
+                                    <i class="fas fa-film fa-2x"></i>
+                                </div>
+                            </div>
+                            <div class="col-md-8">
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ movie.title|truncatechars:30 }}</h5>
+                                    <p class="card-text">
+                                        <small class="text-muted">
+                                            <i class="fas fa-calendar"></i> {{ movie.year|default:"N/A" }}
+                                            {% if movie.titleType %}
+                                            • <span class="badge bg-secondary">{{ movie.titleType }}</span>
+                                            {% endif %}
+                                        </small>
+                                    </p>
+                                    {% if movie.rating %}
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="progress flex-grow-1 me-2" style="height: 6px;">
+                                            <div class="progress-bar bg-warning" 
+                                                 style="width: {% widthratio movie.rating 10 100 %}%">
+                                            </div>
+                                        </div>
+                                        <span class="badge bg-warning text-dark">
+                                            {{ movie.rating|floatformat:1 }}
+                                        </span>
+                                    </div>
+                                    {% endif %}
+                                    {% if movie.genres %}
+                                    <div class="mb-2">
+                                        {% for genre in movie.genres|slice:":3" %}
+                                        <span class="badge bg-light text-dark border">{{ genre }}</span>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                    <div class="mt-auto">
+                                        <a href="{% url 'movie_detail' movie.id %}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i> Détails
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-film fa-3x text-muted mb-3"></i>
+                <p class="text-muted">Aucun film trouvé avec "{{ query }}"</p>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Onglet Personnes -->
+        <div class="tab-pane fade" id="persons" role="tabpanel">
+            {% if search_results.persons %}
+            <div class="row">
+                {% for person in search_results.persons %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body text-center">
+                            <div class="mb-3">
+                                <div class="person-avatar mx-auto mb-3" 
+                                     style="width: 80px; height: 80px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                                            border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-user fa-2x text-white"></i>
+                                </div>
+                                <h5 class="card-title">{{ person.name|truncatechars:25 }}</h5>
+                                <p class="card-text">
+                                    <span class="badge bg-info">{{ person.main_role|default:"Acteur" }}</span>
+                                    {% if person.category and person.category != person.main_role %}
+                                    <span class="badge bg-secondary">{{ person.category }}</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                            <div class="mt-auto">
+                                {% if person.movie_count %}
+                                <p class="text-muted mb-1">
+                                    <i class="fas fa-film"></i> 
+                                    {{ person.movie_count }} film(s)
+                                </p>
+                                {% endif %}
+                                {% if person.actor_count %}
+                                <small class="text-muted d-block">
+                                    <i class="fas fa-theater-masks"></i> 
+                                    {{ person.actor_count }} rôle(s) d'acteur
+                                </small>
+                                {% endif %}
+                                {% if person.director_count %}
+                                <small class="text-muted d-block">
+                                    <i class="fas fa-user-tie"></i> 
+                                    {{ person.director_count }} film(s) réalisé(s)
+                                </small>
+                                {% endif %}
+                                {% if person.birthYear %}
+                                <p class="text-muted mt-2">
+                                    <i class="fas fa-birthday-cake"></i> 
+                                    {{ person.birthYear }}
+                                    {% if person.deathYear %}
+                                    - {{ person.deathYear }}
+                                    {% endif %}
+                                </p>
+                                {% endif %}
+                                <button class="btn btn-sm btn-outline-secondary mt-2" 
+                                        onclick="alert('Page détail personne à implémenter')">
+                                    <i class="fas fa-info-circle"></i> Filmographie
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-user fa-3x text-muted mb-3"></i>
+                <p class="text-muted">Aucune personne trouvée avec "{{ query }}"</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Suggestions -->
+    <div class="card mt-5">
+        <div class="card-body">
+            <h5 class="card-title"><i class="fas fa-lightbulb"></i> Suggestions de recherche</h5>
+            <p class="card-text">
+                Essayez avec : 
+                <a href="?q={{ query }} genre:action">"{{ query }} genre:action"</a> •
+                <a href="?q={{ query }} year:2020">"{{ query }} year:2020"</a> •
+                <a href="?q={{ query }} rating:>7">"{{ query }} rating:>7"</a>
+            </p>
+            <small class="text-muted">
+                <i class="fas fa-info-circle"></i> 
+                Recherche combinée films + personnes. Utilisez les onglets pour filtrer les résultats.
+            </small>
+        </div>
+    </div>
+    
+    {% else %}
+    <!-- Aucun résultat -->
+    <div class="card text-center py-5 my-5">
+        <div class="card-body">
+            <i class="fas fa-search fa-3x text-muted mb-3"></i>
+            <h3 class="text-muted">Aucun résultat trouvé</h3>
+            <p class="text-muted mb-4">Nous n'avons trouvé aucun élément correspondant à "{{ query }}"</p>
+            <div class="d-flex flex-wrap justify-content-center gap-2">
+                <a href="{% url 'search' %}" class="btn btn-primary">
+                    <i class="fas fa-redo"></i> Nouvelle recherche
+                </a>
+                <a href="{% url 'movie_list' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-film"></i> Voir tous les films
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% else %}
+    <!-- Pas de recherche effectuée -->
+    <div class="card text-center py-5 my-5">
+        <div class="card-body">
+            <i class="fas fa-search fa-3x text-primary mb-3"></i>
+            <h3>Que souhaitez-vous rechercher ?</h3>
+            <p class="text-muted mb-4">Trouvez des films, acteurs, réalisateurs dans notre base de données</p>
+            
+            <div class="row g-4 mt-4">
+                <div class="col-md-4">
+                    <div class="card h-100 border-0 shadow-sm">
+                        <div class="card-body text-center">
+                            <i class="fas fa-film fa-2x text-primary mb-3"></i>
+                            <h5>Films par titre</h5>
+                            <p class="text-muted">Recherchez par titre original ou international</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100 border-0 shadow-sm">
+                        <div class="card-body text-center">
+                            <i class="fas fa-user fa-2x text-success mb-3"></i>
+                            <h5>Personnes</h5>
+                            <p class="text-muted">Acteurs, réalisateurs, scénaristes</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100 border-0 shadow-sm">
+                        <div class="card-body text-center">
+                            <i class="fas fa-tags fa-2x text-warning mb-3"></i>
+                            <h5>Par genre</h5>
+                            <p class="text-muted">Action, Comédie, Drame, Science-fiction...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-5">
+                <h5>Exemples de recherche :</h5>
+                <div class="d-flex flex-wrap justify-content-center gap-2 mt-3">
+                    <a href="?q=Star Wars" class="btn btn-outline-secondary">Star Wars</a>
+                    <a href="?q=Leonardo DiCaprio" class="btn btn-outline-secondary">Leonardo DiCaprio</a>
+                    <a href="?q=Christopher Nolan" class="btn btn-outline-secondary">Christopher Nolan</a>
+                    <a href="?q=horror" class="btn btn-outline-secondary">Horreur</a>
+                    <a href="?q=2023" class="btn btn-outline-secondary">Films 2023</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .movie-poster {
+        background: linear-gradient(45deg, #6c757d, #495057);
+        color: white;
+        border-radius: 8px 0 0 8px;
+    }
+    
+    .nav-tabs .nav-link {
+        color: #495057;
+        font-weight: 500;
+    }
+    
+    .nav-tabs .nav-link.active {
+        background-color: #f8f9fa;
+        border-bottom-color: #f8f9fa;
+    }
+    
+    .card {
+        transition: transform 0.2s;
+    }
+    
+    .card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .person-avatar {
+        transition: transform 0.3s;
+    }
+    
+    .person-avatar:hover {
+        transform: scale(1.1);
+    }
+    
+    .border-bottom {
+        border-color: #dee2e6 !important;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Activer l'onglet selon l'URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const tab = urlParams.get('tab');
+    if (tab) {
+        const tabElement = document.getElementById(tab + '-tab');
+        if (tabElement) {
+            new bootstrap.Tab(tabElement).show();
+        }
+    }
+    
+    // Animation des cartes
+    const cards = document.querySelectorAll('.card');
+    cards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 50);
+    });
+});
+</script>
+{% endblock %}

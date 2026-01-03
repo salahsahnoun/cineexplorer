@@ -1,0 +1,430 @@
+{% extends 'movies/base.html' %}
+{% load static %}
+
+{% block title %}Statistiques - CinéExplorer{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Titre -->
+    <div class="d-flex justify-content-between align-items-center mb-5">
+        <h1 class="display-5 fw-bold">
+            <i class="fas fa-chart-bar text-primary"></i> 
+            Tableau de bord statistique
+        </h1>
+        <div>
+            <span class="badge bg-success">Données en temps réel</span>
+            <span class="badge bg-info">SQLite + MongoDB</span>
+        </div>
+    </div>
+    
+    <!-- Statistiques rapides -->
+    <div class="row mb-5">
+        <div class="col-md-3 mb-4">
+            <div class="card text-center shadow-sm h-100">
+                <div class="card-body">
+                    <div class="stat-icon mb-3">
+                        <i class="fas fa-film fa-2x text-primary"></i>
+                    </div>
+                    <h2 class="display-6 fw-bold counter" data-target="{{ total_movies|default:0 }}">
+                        {{ total_movies|default:0|intcomma }}
+                    </h2>
+                    <p class="card-text text-muted">Films total</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-4">
+            <div class="card text-center shadow-sm h-100">
+                <div class="card-body">
+                    <div class="stat-icon mb-3">
+                        <i class="fas fa-user fa-2x text-success"></i>
+                    </div>
+                    <h2 class="display-6 fw-bold counter" data-target="{{ total_persons|default:0 }}">
+                        {{ total_persons|default:0|intcomma }}
+                    </h2>
+                    <p class="card-text text-muted">Personnes</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-4">
+            <div class="card text-center shadow-sm h-100">
+                <div class="card-body">
+                    <div class="stat-icon mb-3">
+                        <i class="fas fa-star fa-2x text-warning"></i>
+                    </div>
+                    <h2 class="display-6 fw-bold">{{ avg_rating|default:"0.0"|floatformat:1 }}</h2>
+                    <p class="card-text text-muted">Note moyenne</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-4">
+            <div class="card text-center shadow-sm h-100">
+                <div class="card-body">
+                    <div class="stat-icon mb-3">
+                        <i class="fas fa-calendar fa-2x text-info"></i>
+                    </div>
+                    <h2 class="display-6 fw-bold">{{ years_range|default:"1900-2024" }}</h2>
+                    <p class="card-text text-muted">Période couverte</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Graphiques -->
+    <div class="row mb-5">
+        <!-- Films par genre -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-tags"></i> Films par genre</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="genreChart" height="250"></canvas>
+                    <div class="mt-3">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Genre</th>
+                                    <th>Nombre</th>
+                                    <th>Pourcentage</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for genre in genres_distribution|slice:":5" %}
+                                <tr>
+                                    <td>{{ genre.genre }}</td>
+                                    <td>{{ genre.count|intcomma }}</td>
+                                    <td>
+                                        <div class="progress" style="height: 10px;">
+                                            <div class="progress-bar bg-primary" 
+                                                 style="width: {{ genre.percentage }}%">
+                                            </div>
+                                        </div>
+                                        <small>{{ genre.percentage|floatformat:1 }}%</small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Distribution des notes -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="fas fa-star"></i> Distribution des notes</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="ratingChart" height="250"></canvas>
+                    <div class="row text-center mt-3">
+                        <div class="col-4">
+                            <div class="fw-bold">{{ ratings_stats.min|default:"0.0"|floatformat:1 }}</div>
+                            <small class="text-muted">Min</small>
+                        </div>
+                        <div class="col-4">
+                            <div class="fw-bold">{{ ratings_stats.avg|default:"0.0"|floatformat:1 }}</div>
+                            <small class="text-muted">Moyenne</small>
+                        </div>
+                        <div class="col-4">
+                            <div class="fw-bold">{{ ratings_stats.max|default:"10.0"|floatformat:1 }}</div>
+                            <small class="text-muted">Max</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Films par année -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-line"></i> Films par décennie</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="yearChart" height="150"></canvas>
+                    <div class="mt-3 text-center">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="fw-bold">{{ decades_stats.most_films_decade|default:"1990s" }}</div>
+                                <small class="text-muted">Décennie la plus prolifique</small>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="fw-bold">{{ decades_stats.most_films_count|default:"0"|intcomma }}</div>
+                                <small class="text-muted">Films dans cette décennie</small>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="fw-bold">{{ decades_stats.growth|default:"0"|floatformat:1 }}%</div>
+                                <small class="text-muted">Croissance 2000s → 2010s</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tableaux détaillés -->
+    <div class="row">
+        <!-- Top 10 films -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-trophy"></i> Top 10 des films</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Titre</th>
+                                    <th>Année</th>
+                                    <th>Note</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for movie in top_movies %}
+                                <tr>
+                                    <td class="fw-bold">{{ forloop.counter }}</td>
+                                    <td>{{ movie.title|truncatechars:25 }}</td>
+                                    <td>{{ movie.year|default:"-" }}</td>
+                                    <td>
+                                        <span class="badge bg-warning text-dark">
+                                            {{ movie.rating|floatformat:1 }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-3">
+                                        <i class="fas fa-film fa-lg"></i><br>
+                                        Aucune donnée disponible
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Top 10 acteurs -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header bg-purple text-white" style="background-color: #6f42c1;">
+                    <h5 class="mb-0"><i class="fas fa-user-friends"></i> Top 10 acteurs</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Acteur</th>
+                                    <th>Films</th>
+                                    <th>Note moy.</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for actor in top_actors %}
+                                <tr>
+                                    <td class="fw-bold">{{ forloop.counter }}</td>
+                                    <td>{{ actor.name|truncatechars:20 }}</td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ actor.movie_count }}</span>
+                                    </td>
+                                    <td>
+                                        {% if actor.avg_rating %}
+                                        <span class="badge bg-info">{{ actor.avg_rating|floatformat:1 }}</span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-3">
+                                        <i class="fas fa-user fa-lg"></i><br>
+                                        Aucune donnée disponible
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Informations techniques -->
+    <div class="card mt-4">
+        <div class="card-body">
+            <h5 class="card-title"><i class="fas fa-database"></i> Informations techniques</h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Sources de données</h6>
+                    <ul class="list-unstyled">
+                        <li><span class="badge bg-success">SQLite</span> : Statistiques agrégées, listes filtrées</li>
+                        <li><span class="badge bg-info">MongoDB</span> : Documents structurés, données détaillées</li>
+                        <li><span class="badge bg-warning">IMDB Dataset</span> : Données originales</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6>Métriques calculées</h6>
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-check text-success"></i> Distribution par genre</li>
+                        <li><i class="fas fa-check text-success"></i> Histogramme des notes</li>
+                        <li><i class="fas fa-check text-success"></i> Évolution temporelle</li>
+                        <li><i class="fas fa-check text-success"></i> Classements divers</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="alert alert-light mt-3">
+                <small class="text-muted">
+                    <i class="fas fa-info-circle"></i> 
+                    Les statistiques sont mises à jour en temps réel depuis les bases de données. 
+                    Les temps de calcul peuvent varier en fonction de la taille des données.
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Données pour les graphiques (à remplacer par des données réelles)
+const genreData = {
+    labels: [{% for genre in genres_distribution|slice:":10" %}"{{ genre.genre }}",{% endfor %}],
+    datasets: [{
+        data: [{% for genre in genres_distribution|slice:":10" %}{{ genre.count }},{% endfor %}],
+        backgroundColor: [
+            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+            '#FF9F40', '#C9CBCF', '#7CBF4F', '#E7E9ED', '#5A9BD4'
+        ]
+    }]
+};
+
+const ratingData = {
+    labels: ['0-1', '1-2', '2-3', '3-4', '4-5', '5-6', '6-7', '7-8', '8-9', '9-10'],
+    datasets: [{
+        label: 'Nombre de films',
+        data: [{% for dist in rating_distribution %}{{ dist }},{% endfor %}],
+        backgroundColor: 'rgba(255, 193, 7, 0.7)',
+        borderColor: 'rgba(255, 193, 7, 1)',
+        borderWidth: 1
+    }]
+};
+
+const yearData = {
+    labels: [{% for decade in decades %}"{{ decade.decade }}",{% endfor %}],
+    datasets: [{
+        label: 'Films par décennie',
+        data: [{% for decade in decades %}{{ decade.count }},{% endfor %}],
+        backgroundColor: 'rgba(40, 167, 69, 0.7)',
+        borderColor: 'rgba(40, 167, 69, 1)',
+        borderWidth: 2,
+        fill: true
+    }]
+};
+
+// Initialisation des graphiques
+document.addEventListener('DOMContentLoaded', function() {
+    // Chart 1: Films par genre (Doughnut)
+    const genreCtx = document.getElementById('genreChart').getContext('2d');
+    new Chart(genreCtx, {
+        type: 'doughnut',
+        data: genreData,
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                }
+            }
+        }
+    });
+    
+    // Chart 2: Distribution des notes (Bar)
+    const ratingCtx = document.getElementById('ratingChart').getContext('2d');
+    new Chart(ratingCtx, {
+        type: 'bar',
+        data: ratingData,
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+    
+    // Chart 3: Films par décennie (Line)
+    const yearCtx = document.getElementById('yearChart').getContext('2d');
+    new Chart(yearCtx, {
+        type: 'line',
+        data: yearData,
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+    
+    // Animation des compteurs
+    function animateCounter(element, target) {
+        let current = 0;
+        const increment = target / 100;
+        const timer = setInterval(() => {
+            current += increment;
+            if (current >= target) {
+                current = target;
+                clearInterval(timer);
+            }
+            element.textContent = Math.floor(current).toLocaleString('fr-FR');
+        }, 20);
+    }
+    
+    // Animer tous les compteurs
+    document.querySelectorAll('.counter').forEach(el => {
+        const target = parseInt(el.getAttribute('data-target')) || parseInt(el.textContent.replace(/\D/g, ''));
+        if (!isNaN(target)) {
+            animateCounter(el, target);
+        }
+    });
+});
+</script>
+
+<style>
+    .bg-purple {
+        background-color: #6f42c1 !important;
+    }
+    
+    .stat-icon {
+        opacity: 0.8;
+    }
+    
+    .card {
+        border: none;
+        border-radius: 10px;
+    }
+    
+    .card-header {
+        border-radius: 10px 10px 0 0 !important;
+    }
+    
+    .table-hover tbody tr:hover {
+        background-color: rgba(0,0,0,0.05);
+    }
+</style>
+{% endblock %}

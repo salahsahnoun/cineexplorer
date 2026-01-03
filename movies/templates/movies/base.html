@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}CinéExplorer{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <style>
+        body {
+            padding-top: 56px;
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .navbar-brand {
+            font-weight: bold;
+            color: #e50914 !important;
+        }
+        
+        .card {
+            transition: transform 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border: none;
+            border-radius: 10px;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+        
+        .movie-poster {
+            height: 200px;
+            object-fit: cover;
+            background: linear-gradient(45deg, #6c757d, #343a40);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            border-radius: 8px 8px 0 0;
+        }
+        
+        .rating-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #ffc107;
+            color: #000;
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+        
+        .hero-section {
+            border-radius: 15px;
+            margin-top: 20px;
+        }
+        
+        .footer {
+            background-color: #343a40;
+            color: white;
+            margin-top: 50px;
+            padding: 30px 0;
+        }
+        
+        .stat-number {
+            color: #2c3e50;
+        }
+        
+        .progress {
+            height: 8px;
+            border-radius: 4px;
+        }
+        
+        .hero-stats {
+            backdrop-filter: blur(10px);
+        }
+        
+        /* Animation pour les cartes */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero-section {
+                padding: 2rem 0 !important;
+            }
+            
+            .display-4 {
+                font-size: 2.5rem;
+            }
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-film me-2"></i>CinéExplorer
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">
+                            <i class="fas fa-home"></i> Accueil
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/movies/">
+                            <i class="fas fa-list"></i> Films
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/stats/">
+                            <i class="fas fa-chart-bar"></i> Statistiques
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/search/">
+                            <i class="fas fa-search"></i> Recherche
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/test/">
+                            <i class="fas fa-wrench"></i> Test T3.3
+                        </a>
+                    </li>
+                </ul>
+                
+                <!-- Recherche rapide -->
+                <form class="d-flex" action="{% url 'search' %}" method="get">
+                    <input class="form-control me-2" type="search" name="q" 
+                           placeholder="Rechercher..." aria-label="Search">
+                    <button class="btn btn-outline-light" type="submit">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Contenu principal -->
+    <main class="container mt-4">
+        <!-- Messages -->
+        {% if messages %}
+        <div class="messages mb-4">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <!-- Contenu de la page -->
+        <div class="fade-in">
+            {% block content %}
+            {% endblock %}
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container text-center">
+            <h5>🎬 CinéExplorer</h5>
+            <p>Projet Bases de Données Avancées - Phase 4</p>
+            <p class="text-muted">
+                <small>
+                    IMDB Dataset • Django • SQLite • MongoDB Replica Set • 
+                    <span class="badge bg-success">SQLite Connecté</span>
+                    <span class="badge bg-warning">MongoDB Connecté</span>
+                </small>
+            </p>
+            <p class="mt-3">
+                <a href="/test/" class="text-light me-3">
+                    <i class="fas fa-database"></i> Test Connexions
+                </a>
+                <a href="/api/test/" class="text-light me-3">
+                    <i class="fas fa-code"></i> API
+                </a>
+                <a href="/old-home/" class="text-light">
+                    <i class="fas fa-history"></i> Ancienne Version
+                </a>
+            </p>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Custom JS -->
+    <script>
+    // Formatage des nombres
+    function formatNumber(num) {
+        return new Intl.NumberFormat('fr-FR').format(num);
+    }
+    
+    // Animation des statistiques
+    function animateCounter(element, target) {
+        let current = 0;
+        const increment = target / 100;
+        const timer = setInterval(() => {
+            current += increment;
+            if (current >= target) {
+                current = target;
+                clearInterval(timer);
+            }
+            element.textContent = formatNumber(Math.floor(current));
+        }, 20);
+    }
+    
+    // Démarrer les animations au chargement
+    document.addEventListener('DOMContentLoaded', function() {
+        // Animer les compteurs
+        document.querySelectorAll('.counter').forEach(el => {
+            const target = parseInt(el.getAttribute('data-target')) || parseInt(el.textContent.replace(/\D/g, ''));
+            if (!isNaN(target)) {
+                animateCounter(el, target);
+            }
+        });
+        
+        // Tooltips Bootstrap
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    });
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

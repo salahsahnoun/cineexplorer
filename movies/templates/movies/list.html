@@ -1,0 +1,277 @@
+{% extends 'movies/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Liste des films - CinéExplorer{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Titre et actions -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="display-5 fw-bold">
+            <i class="fas fa-film text-primary"></i> 
+            Catalogue des films
+        </h1>
+        <div>
+            <span class="badge bg-secondary">{{ total_movies|default:"0"|intcomma }} films</span>
+        </div>
+    </div>
+    
+    <!-- Filtres -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0"><i class="fas fa-filter"></i> Filtres et tri</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label for="genre" class="form-label">Genre</label>
+                    <select class="form-select" id="genre" name="genre">
+                        <option value="">Tous les genres</option>
+                        {% for genre in genres %}
+                        <option value="{{ genre }}" {% if selected_genre == genre %}selected{% endif %}>
+                            {{ genre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-2">
+                    <label for="year_from" class="form-label">Année de</label>
+                    <input type="number" class="form-control" id="year_from" name="year_from" 
+                           placeholder="1900" value="{{ year_from|default:'' }}" min="1900" max="2025">
+                </div>
+                
+                <div class="col-md-2">
+                    <label for="year_to" class="form-label">à</label>
+                    <input type="number" class="form-control" id="year_to" name="year_to" 
+                           placeholder="2025" value="{{ year_to|default:'' }}" min="1900" max="2025">
+                </div>
+                
+                <div class="col-md-2">
+                    <label for="min_rating" class="form-label">Note min</label>
+                    <input type="number" class="form-control" id="min_rating" name="min_rating" 
+                           placeholder="0.0" value="{{ min_rating|default:'' }}" step="0.1" min="0" max="10">
+                </div>
+                
+                <div class="col-md-3">
+                    <label for="sort" class="form-label">Trier par</label>
+                    <select class="form-select" id="sort" name="sort">
+                        <option value="-rating" {% if sort == '-rating' %}selected{% endif %}>Note (décroissant)</option>
+                        <option value="rating" {% if sort == 'rating' %}selected{% endif %}>Note (croissant)</option>
+                        <option value="-year" {% if sort == '-year' %}selected{% endif %}>Année (récent)</option>
+                        <option value="year" {% if sort == 'year' %}selected{% endif %}>Année (ancien)</option>
+                        <option value="title" {% if sort == 'title' %}selected{% endif %}>Titre (A-Z)</option>
+                        <option value="-title" {% if sort == '-title' %}selected{% endif %}>Titre (Z-A)</option>
+                        <option value="-votes" {% if sort == '-votes' %}selected{% endif %}>Popularité</option>
+                    </select>
+                </div>
+                
+                <div class="col-md-12 mt-3">
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i> Appliquer les filtres
+                        </button>
+                        <a href="{% url 'movie_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Réinitialiser
+                        </a>
+                        <div class="ms-auto">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="gridView" checked>
+                                <label class="form-check-label" for="gridView">
+                                    <i class="fas fa-th"></i> Vue grille
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Résultats -->
+    <div class="row" id="moviesGrid">
+        {% for movie in movies %}
+        <div class="col-xl-3 col-lg-4 col-md-6 mb-4">
+            <div class="card h-100 shadow-sm hover-shadow">
+                <div class="position-relative">
+                    <div class="movie-poster" style="height: 200px;">
+                        <div class="d-flex flex-column justify-content-center align-items-center h-100 p-3 text-center">
+                            <i class="fas fa-film fa-3x mb-3 opacity-50"></i>
+                            <span class="fw-bold">{{ movie.title|truncatechars:25 }}</span>
+                        </div>
+                    </div>
+                    {% if movie.rating %}
+                    <div class="rating-badge">
+                        {{ movie.rating|floatformat:1 }}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">{{ movie.title|truncatechars:30 }}</h5>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="badge bg-secondary">
+                            <i class="fas fa-calendar"></i> {{ movie.year|default:"N/A" }}
+                        </span>
+                        {% if movie.votes %}
+                        <small class="text-muted">
+                            <i class="fas fa-users"></i> {{ movie.votes|intword }}
+                        </small>
+                        {% endif %}
+                    </div>
+                    {% if movie.genres %}
+                    <div class="mb-3">
+                        {% for genre in movie.genres|slice:":3" %}
+                        <span class="badge bg-light text-dark border">{{ genre }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    {% if movie.directors %}
+                    <p class="card-text">
+                        <small class="text-muted">
+                            <i class="fas fa-user-tie"></i> 
+                            {{ movie.directors|slice:":1"|join:", " }}
+                        </small>
+                    </p>
+                    {% endif %}
+                </div>
+                <div class="card-footer bg-transparent border-top-0">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'movie_detail' movie.id %}" 
+                           class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-eye"></i> Détails
+                        </a>
+                        {% if movie.imdb_url %}
+                        <a href="{{ movie.imdb_url }}" target="_blank" class="btn btn-sm btn-outline-warning">
+                            <i class="fab fa-imdb"></i> IMDB
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="card text-center py-5">
+                <div class="card-body">
+                    <i class="fas fa-film fa-3x text-muted mb-3"></i>
+                    <h4 class="text-muted">Aucun film trouvé</h4>
+                    <p class="text-muted">Essayez de modifier vos critères de recherche</p>
+                    <a href="{% url 'movie_list' %}" class="btn btn-primary">
+                        <i class="fas fa-redo"></i> Réinitialiser les filtres
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Pagination -->
+    {% if movies.has_other_pages %}
+    <nav aria-label="Pagination" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if movies.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ movies.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                    <i class="fas fa-chevron-left"></i> Précédent
+                </a>
+            </li>
+            {% else %}
+            <li class="page-item disabled">
+                <span class="page-link"><i class="fas fa-chevron-left"></i> Précédent</span>
+            </li>
+            {% endif %}
+            
+            {% for i in movies.paginator.page_range %}
+                {% if movies.number == i %}
+                <li class="page-item active">
+                    <span class="page-link">{{ i }}</span>
+                </li>
+                {% elif i > movies.number|add:-3 and i < movies.number|add:3 %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ i }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        {{ i }}
+                    </a>
+                </li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if movies.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ movies.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                    Suivant <i class="fas fa-chevron-right"></i>
+                </a>
+            </li>
+            {% else %}
+            <li class="page-item disabled">
+                <span class="page-link">Suivant <i class="fas fa-chevron-right"></i></span>
+            </li>
+            {% endif %}
+        </ul>
+        <p class="text-center text-muted mt-2">
+            Page {{ movies.number }} sur {{ movies.paginator.num_pages }}
+            • {{ movies.paginator.count }} films au total
+        </p>
+    </nav>
+    {% endif %}
+    
+    <!-- Statistiques rapides -->
+    <div class="card mt-5">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Statistiques de la recherche</h5>
+        </div>
+        <div class="card-body">
+            <div class="row text-center">
+                <div class="col-md-3">
+                    <div class="display-6 fw-bold">{{ total_movies|default:"0"|intcomma }}</div>
+                    <div class="text-muted">Films totaux</div>
+                </div>
+                <div class="col-md-3">
+                    <div class="display-6 fw-bold">{{ genres|length }}</div>
+                    <div class="text-muted">Genres disponibles</div>
+                </div>
+                <div class="col-md-3">
+                    <div class="display-6 fw-bold">{{ avg_rating|default:"0.0"|floatformat:1 }}</div>
+                    <div class="text-muted">Note moyenne</div>
+                </div>
+                <div class="col-md-3">
+                    <div class="display-6 fw-bold">{{ latest_year|default:"2024" }}</div>
+                    <div class="text-muted">Année max</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle vue grille/liste
+    const gridViewSwitch = document.getElementById('gridView');
+    const moviesGrid = document.getElementById('moviesGrid');
+    
+    gridViewSwitch.addEventListener('change', function() {
+        if (this.checked) {
+            moviesGrid.classList.remove('row-cols-1');
+            moviesGrid.classList.add('row-cols-xl-3', 'row-cols-lg-4', 'row-cols-md-6');
+        } else {
+            moviesGrid.classList.remove('row-cols-xl-3', 'row-cols-lg-4', 'row-cols-md-6');
+            moviesGrid.classList.add('row-cols-1');
+        }
+    });
+    
+    // Animation des cartes
+    const cards = document.querySelectorAll('.hover-shadow');
+    cards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 50);
+    });
+});
+</script>
+{% endblock %}

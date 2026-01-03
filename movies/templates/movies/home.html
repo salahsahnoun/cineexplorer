@@ -1,115 +1,404 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title }}</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 40px;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            min-height: 100vh;
-        }
-        
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: white;
-            padding: 40px;
-            border-radius: 10px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        }
-        
-        h1 {
-            color: #2c3e50;
-            border-bottom: 3px solid #3498db;
-            padding-bottom: 10px;
-        }
-        
-        .phase {
-            background: #3498db;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 5px;
-            display: inline-block;
-            margin: 20px 0;
-        }
-        
-        .task {
-            background: #2ecc71;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 5px;
-            display: inline-block;
-            margin-bottom: 30px;
-        }
-        
-        .links {
-            margin-top: 40px;
-        }
-        
-        .btn {
-            display: inline-block;
-            padding: 15px 30px;
-            margin: 10px;
-            background: #9b59b6;
-            color: white;
-            text-decoration: none;
-            border-radius: 5px;
-            transition: all 0.3s ease;
-        }
-        
-        .btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        }
-        
-        .btn-test {
-            background: #e74c3c;
-        }
-        
-        .btn-api {
-            background: #3498db;
-        }
-        
-        .instructions {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 5px;
-            margin-top: 30px;
-            border-left: 4px solid #3498db;
-        }
-    </style>
-</head>
-<body>
+{% extends 'movies/base.html' %}
+{% load static %}
+
+{% block title %}Accueil - CinéExplorer{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section py-5 mb-5 text-white" 
+         style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
     <div class="container">
-        <h1>🎬 {{ title }}</h1>
-        
-        <div class="phase">{{ phase }}</div>
-        <div class="task">{{ task }}</div>
-        
-        <p>Cette page marque le début de l'intégration Django avec les bases de données SQLite et MongoDB Replica Set.</p>
-        
-        <div class="instructions">
-            <h3>🎯 Objectifs du T3.3 :</h3>
-            <ul>
-                <li>✅ Configurer Django avec connexion SQLite</li>
-                <li>✅ Configurer Django avec connexion MongoDB Replica Set</li>
-                <li>✅ Créer les services d'accès aux bases</li>
-                <li>✅ Tester les connexions</li>
-                <li>✅ Préparer l'infrastructure pour la Phase 4</li>
-            </ul>
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <h1 class="display-4 fw-bold mb-3">🎬 CinéExplorer</h1>
+                <p class="lead mb-4">Votre plateforme de découverte de films avec <strong>{{ stats.total_movies|default:"36,859"|intcomma }}</strong> films et <strong>{{ stats.total_persons|default:"145,847"|intcomma }}</strong> personnes.</p>
+                
+                <!-- Formulaire de recherche -->
+                <form action="{% url 'search' %}" method="get" class="row g-3">
+                    <div class="col-md-8">
+                        <div class="input-group input-group-lg">
+                            <input type="text" class="form-control" 
+                                   name="q" placeholder="Rechercher un film, acteur ou réalisateur..."
+                                   aria-label="Recherche">
+                            <button class="btn btn-light" type="submit">
+                                <i class="fas fa-search"></i> Rechercher
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="{% url 'movie_list' %}" class="btn btn-outline-light btn-lg w-100">
+                            <i class="fas fa-film"></i> Voir tous
+                        </a>
+                    </div>
+                </form>
+            </div>
+            <div class="col-lg-4 text-center">
+                <div class="hero-stats p-4 rounded" style="background: rgba(255,255,255,0.1);">
+                    <h3 class="mb-3">📊 En un coup d'œil</h3>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <div class="stat-number display-6 fw-bold">{{ stats.total_movies|default:"36,859"|intword }}</div>
+                            <div class="stat-label">Films</div>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <div class="stat-number display-6 fw-bold">{{ stats.total_persons|default:"145,847"|intword }}</div>
+                            <div class="stat-label">Personnes</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="stat-number display-6 fw-bold">{{ stats.total_genres|default:"28" }}</div>
+                            <div class="stat-label">Genres</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="stat-number display-6 fw-bold">{{ stats.best_movie.rating|default:"10.0"|floatformat:1 }}</div>
+                            <div class="stat-label">Top note</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        
-        <div class="links">
-            <a href="/test/" class="btn btn-test">🔧 Page de Test</a>
-            <a href="/api/test/" class="btn btn-api">📡 API Test (JSON)</a>
-        </div>
-        
-        <p style="margin-top: 40px; color: #7f8c8d; font-size: 0.9em;">
-            Projet CinéExplorer • Bases de Données Avancées • T3.3
-        </p>
     </div>
-</body>
-</html>
+</section>
+
+<!-- Statistiques rapides -->
+<div class="container mb-5">
+    <div class="row g-4">
+        <div class="col-md-3">
+            <div class="card text-center h-100 shadow-sm">
+                <div class="card-body">
+                    <div class="stat-icon mb-3">
+                        <i class="fas fa-calendar-alt fa-2x text-primary"></i>
+                    </div>
+                    <h3 class="card-title">{{ stats.latest_year|default:"2024" }}</h3>
+                    <p class="card-text text-muted">Année la plus récente</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center h-100 shadow-sm">
+                <div class="card-body">
+                    <div class="stat-icon mb-3">
+                        <i class="fas fa-star fa-2x text-warning"></i>
+                    </div>
+                    <h3 class="card-title">{{ stats.best_movie.rating|default:"10.0"|floatformat:1 }}/10</h3>
+                    <p class="card-text text-muted">{{ stats.best_movie.title|default:"Oru Canadian Diary"|truncatechars:20 }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center h-100 shadow-sm">
+                <div class="card-body">
+                    <div class="stat-icon mb-3">
+                        <i class="fas fa-database fa-2x text-success"></i>
+                    </div>
+                    <h3 class="card-title">{{ stats.mongo_movies|default:"0"|intcomma }}</h3>
+                    <p class="card-text text-muted">Films MongoDB</p>
+                    <small class="text-{% if stats.mongo_available %}success{% else %}danger{% endif %}">
+                        {% if stats.mongo_available %}✅ Connecté{% else %}❌ Hors ligne{% endif %}
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center h-100 shadow-sm">
+                <div class="card-body">
+                    <div class="stat-icon mb-3">
+                        <i class="fas fa-chart-line fa-2x text-info"></i>
+                    </div>
+                    <h3 class="card-title">{{ stats.movies_by_type.0.count|default:"28,000"|intcomma }}</h3>
+                    <p class="card-text text-muted">{{ stats.movies_by_type.0.type|default:"movie"|title }}s</p>
+                    <small>Type le plus commun</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top 10 Films -->
+<section class="container mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="h1">
+            <i class="fas fa-trophy text-warning"></i> 
+            Top 10 des films les mieux notés
+        </h2>
+        <a href="{% url 'movie_list' %}?sort=-rating" class="btn btn-outline-primary">
+            Voir plus <i class="fas fa-arrow-right"></i>
+        </a>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="table table-hover table-striped">
+            <thead class="table-dark">
+                <tr>
+                    <th width="60">#</th>
+                    <th>Titre</th>
+                    <th width="100">Année</th>
+                    <th width="120">Note</th>
+                    <th width="150">Votes</th>
+                    <th width="100">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for movie in top_movies %}
+                <tr>
+                    <td class="text-center fw-bold">{{ forloop.counter }}</td>
+                    <td>
+                        <strong>{{ movie.title }}</strong>
+                        {% if movie.year %}
+                        <br>
+                        <small class="text-muted">{{ movie.year }}</small>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">{{ movie.year|default:"-" }}</td>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <div class="progress flex-grow-1 me-2" style="height: 8px;">
+                                <div class="progress-bar bg-warning" 
+                                     style="width: {% widthratio movie.rating 10 100 %}%">
+                                </div>
+                            </div>
+                            <span class="badge bg-warning text-dark fw-bold">
+                                {{ movie.rating|default:0|floatformat:1 }}
+                            </span>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="text-muted">{{ movie.votes|default:0|intcomma }}</span>
+                    </td>
+                    <td>
+                        <a href="{% url 'movie_detail' movie.id %}"  
+                           class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-eye"></i> Voir
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center py-4">
+                        <div class="text-muted">
+                            <i class="fas fa-film fa-2x mb-3"></i>
+                            <p>Aucun film trouvé</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- Films aléatoires -->
+<section class="container mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="h1">
+            <i class="fas fa-random text-info"></i> 
+            Découvrez des films aléatoires
+        </h2>
+        <button class="btn btn-outline-info" onclick="window.location.reload()">
+            <i class="fas fa-redo"></i> Nouvelle sélection
+        </button>
+    </div>
+    
+    <div class="row g-4">
+        {% for movie in random_movies %}
+        <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100 shadow-sm">
+                <div class="position-relative">
+                    <div class="movie-poster" style="height: 200px;">
+                        <div class="d-flex flex-column justify-content-center align-items-center h-100 p-3 text-center">
+                            <i class="fas fa-film fa-3x mb-3 opacity-50"></i>
+                            <span class="fw-bold">{{ movie.title|truncatechars:25 }}</span>
+                        </div>
+                    </div>
+                    {% if movie.rating %}
+                    <div class="rating-badge">
+                        {{ movie.rating|floatformat:1 }}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <h6 class="card-title">{{ movie.title|truncatechars:25 }}</h6>
+                    <p class="card-text">
+                        <small class="text-muted">
+                            <i class="fas fa-calendar"></i> {{ movie.year|default:"Inconnue" }}
+                        </small>
+                    </p>
+                </div>
+                <div class="card-footer bg-transparent border-top-0">
+                    <div class="d-grid">
+                        <a href="{% url 'movie_detail' movie.id %}" 
+                           class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-info-circle"></i> Détails
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 text-center py-5">
+            <i class="fas fa-film fa-3x text-muted mb-3"></i>
+            <p class="text-muted">Aucun film disponible</p>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+<!-- Catégories populaires -->
+<section class="container mb-5">
+    <h2 class="h1 mb-4">
+        <i class="fas fa-tags text-success"></i> 
+        Genres populaires
+    </h2>
+    
+    <div class="row g-3">
+        {% for genre in stats.movies_by_type|slice:":8" %}
+        <div class="col-md-3 col-sm-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <span class="badge bg-success rounded-pill me-2">
+                            {{ genre.count|default:0|intcomma }}
+                        </span>
+                        {{ genre.type|default:"Film"|title }}
+                    </h5>
+                    <div class="progress" style="height: 6px;">
+                        <div class="progress-bar bg-success" 
+                             style="width: {% widthratio genre.count stats.total_movies 100 %}%;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+<!-- Call to Action -->
+<section class="container mb-5">
+    <div class="card bg-gradient text-white" 
+         style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+        <div class="card-body text-center p-5">
+            <h2 class="display-5 mb-3">🚀 Prêt à explorer notre collection ?</h2>
+            <p class="lead mb-4">Découvrez des milliers de films avec des filtres avancés et des détails complets.</p>
+            <div class="d-flex flex-wrap justify-content-center gap-3">
+                <a href="{% url 'movie_list' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-film"></i> Parcourir les films
+                </a>
+                <a href="{% url 'stats' %}" class="btn btn-outline-light btn-lg px-4">
+                    <i class="fas fa-chart-bar"></i> Voir les statistiques
+                </a>
+                <a href="{% url 'search' %}" class="btn btn-outline-light btn-lg px-4">
+                    <i class="fas fa-search"></i> Recherche avancée
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Info Phase -->
+<div class="container">
+    <div class="alert alert-info">
+        <div class="d-flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-info-circle fa-2x"></i>
+            </div>
+            <div class="flex-grow-1 ms-3">
+                <h4 class="alert-heading">Phase 4 - Interface Web Django</h4>
+                <p>Cette interface utilise intelligemment les deux bases de données :</p>
+                <ul class="mb-0">
+                    <li><strong>SQLite</strong> : Statistiques, listes filtrées, recherche</li>
+                    <li><strong>MongoDB Replica Set</strong> : Détails complets des films</li>
+                </ul>
+                <hr>
+                <p class="mb-0">
+                    <small>
+                        <i class="fas fa-database"></i> 
+                        Bases connectées : 
+                        <span class="badge bg-success">SQLite</span> 
+                        <span class="badge {% if stats.mongo_available %}bg-success{% else %}bg-warning{% endif %}">MongoDB</span>
+                    </small>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .hero-section {
+        border-radius: 15px;
+        margin-top: 20px;
+    }
+    
+    .movie-poster {
+        background: linear-gradient(45deg, #6c757d, #343a40);
+        color: white;
+        border-radius: 8px 8px 0 0;
+    }
+    
+    .rating-badge {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: #ffc107;
+        color: #000;
+        font-weight: bold;
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+    }
+    
+    .stat-icon {
+        opacity: 0.8;
+    }
+    
+    .card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+    }
+    
+    .progress-bar {
+        border-radius: 4px;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Font Awesome pour les icônes -->
+<script src="https://kit.fontawesome.com/your-fontawesome-kit.js" crossorigin="anonymous"></script>
+
+<script>
+// Animation pour les cartes
+document.addEventListener('DOMContentLoaded', function() {
+    // Animation d'entrée des cartes
+    const cards = document.querySelectorAll('.card');
+    cards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+    
+    // Formatage des nombres
+    function formatNumber(num) {
+        return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    }
+    
+    // Appliquer le formatage
+    document.querySelectorAll('.intcomma').forEach(el => {
+        const num = parseInt(el.textContent.replace(/\s/g, ''));
+        if (!isNaN(num)) {
+            el.textContent = formatNumber(num);
+        }
+    });
+});
+</script>
+{% endblock %}

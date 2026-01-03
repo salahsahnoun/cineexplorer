@@ -1,0 +1,317 @@
+{% extends 'movies/base.html' %}
+{% load static %}
+
+{% block title %}{{ movie.title }} - CinéExplorer{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Bouton retour -->
+    <div class="mb-4">
+        <a href="{% url 'movie_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Retour aux films
+        </a>
+    </div>
+
+    <!-- En-tête du film -->
+    <div class="row mb-5">
+        <div class="col-md-4">
+            <div class="card shadow">
+                <div class="movie-poster" style="height: 400px;">
+                    <div class="d-flex flex-column justify-content-center align-items-center h-100 p-3 text-center">
+                        <i class="fas fa-film fa-5x mb-3 opacity-50"></i>
+                        <h4 class="fw-bold">{{ movie.title|truncatechars:40 }}</h4>
+                        <p class="mt-2">
+                            <i class="fas fa-calendar"></i> {{ movie.year|default:"Année inconnue" }}
+                        </p>
+                    </div>
+                </div>
+                <div class="card-footer text-center">
+                    {% if movie.rating %}
+                    <div class="display-5 fw-bold text-warning">{{ movie.rating|floatformat:1 }}</div>
+                    <div class="text-muted">
+                        <i class="fas fa-star text-warning"></i> Note moyenne
+                        {% if movie.votes %}
+                        <br><small>{{ movie.votes|intcomma }} votes</small>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="text-muted">Aucune note disponible</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            <div class="card shadow h-100">
+                <div class="card-body">
+                    <h1 class="card-title display-5 fw-bold">{{ movie.title }}</h1>
+                    
+                    <!-- Informations de base -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <p><strong><i class="fas fa-clock"></i> Durée :</strong> 
+                                {% if movie.runtime %}
+                                {{ movie.runtime }} minutes
+                                {% else %}
+                                Non spécifiée
+                                {% endif %}
+                            </p>
+                            <p><strong><i class="fas fa-film"></i> Type :</strong> 
+                                {{ movie.titleType|default:"Film"|title }}
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong><i class="fas fa-globe"></i> Langue originale :</strong> 
+                                {{ movie.language|default:"Anglais" }}
+                            </p>
+                            <p><strong><i class="fas fa-certificate"></i> Adulte :</strong> 
+                                {% if movie.isAdult %}
+                                <span class="badge bg-danger">Oui</span>
+                                {% else %}
+                                <span class="badge bg-success">Non</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <!-- Genres -->
+                    {% if movie.genres %}
+                    <div class="mb-4">
+                        <h5><i class="fas fa-tags"></i> Genres</h5>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for genre in movie.genres %}
+                            <span class="badge bg-primary">{{ genre }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Synopsis -->
+                    {% if movie.description %}
+                    <div class="mb-4">
+                        <h5><i class="fas fa-book-open"></i> Synopsis</h5>
+                        <p class="lead">{{ movie.description }}</p>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Informations MongoDB -->
+                    <div class="alert alert-info mt-4">
+                        <i class="fas fa-database"></i> 
+                        <strong>Données chargées depuis MongoDB Replica Set</strong>
+                        <br>
+                        <small>Document structuré avec casting intégré</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sections détaillées -->
+    <div class="row">
+        <!-- Casting -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header bg-dark text-white">
+                    <h4 class="mb-0"><i class="fas fa-users"></i> Distribution principale</h4>
+                </div>
+                <div class="card-body">
+                    {% if movie.cast %}
+                    <div class="list-group">
+                        {% for actor in movie.cast|slice:":10" %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">{{ actor.name }}</h6>
+                                    {% if actor.characters %}
+                                    <small class="text-muted">
+                                        <i class="fas fa-theater-masks"></i> 
+                                        {{ actor.characters|join:", " }}
+                                    </small>
+                                    {% endif %}
+                                </div>
+                                <span class="badge bg-secondary">#{{ actor.ordering }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center py-3">
+                        <i class="fas fa-users fa-2x mb-2"></i><br>
+                        Information de casting non disponible
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Équipe technique -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header bg-dark text-white">
+                    <h4 class="mb-0"><i class="fas fa-video"></i> Équipe technique</h4>
+                </div>
+                <div class="card-body">
+                    <!-- Réalisateurs -->
+                    {% if movie.directors %}
+                    <h6><i class="fas fa-user-tie text-primary"></i> Réalisateurs</h6>
+                    <ul class="list-unstyled mb-3">
+                        {% for director in movie.directors %}
+                        <li class="mb-1">
+                            <i class="fas fa-circle text-primary fa-xs"></i> {{ director.name }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                    
+                    <!-- Scénaristes -->
+                    {% if movie.writers %}
+                    <h6><i class="fas fa-pen text-success"></i> Scénaristes</h6>
+                    <ul class="list-unstyled">
+                        {% for writer in movie.writers %}
+                        <li class="mb-1">
+                            <i class="fas fa-circle text-success fa-xs"></i> 
+                            {{ writer.name }}
+                            {% if writer.category %}
+                            <small class="text-muted">({{ writer.category }})</small>
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                    
+                    {% if not movie.directors and not movie.writers %}
+                    <p class="text-muted text-center py-3">
+                        <i class="fas fa-info-circle fa-2x mb-2"></i><br>
+                        Information d'équipe non disponible
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Informations supplémentaires -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-secondary text-white">
+                    <h4 class="mb-0"><i class="fas fa-info-circle"></i> Informations additionnelles</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Titres alternatifs -->
+                        {% if movie.titles %}
+                        <div class="col-md-6">
+                            <h5>Titres alternatifs</h5>
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Région</th>
+                                        <th>Titre</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for title in movie.titles|slice:":5" %}
+                                    <tr>
+                                        <td><span class="badge bg-info">{{ title.region|default:"N/A" }}</span></td>
+                                        <td>{{ title.title }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Informations techniques -->
+                        <div class="col-md-6">
+                            <h5>Informations techniques</h5>
+                            <table class="table table-sm">
+                                <tr>
+                                    <td><strong>ID IMDB</strong></td>
+                                    <td><code>{{ movie_id }}</code></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Source</strong></td>
+                                    <td>
+                                        <span class="badge bg-success">MongoDB</span>
+                                        <span class="badge bg-info">Replica Set</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Dernière mise à jour</strong></td>
+                                    <td>Phase 4 - {{ movie.year|default:"N/A" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Films similaires (à implémenter avec un service) -->
+    {% if similar_movies %}
+    <div class="mt-5">
+        <h3 class="mb-4"><i class="fas fa-film"></i> Films similaires</h3>
+        <div class="row">
+            {% for sim in similar_movies|slice:":4" %}
+            <div class="col-md-3 col-sm-6 mb-3">
+                <div class="card h-100 shadow-sm">
+                    <div class="movie-poster" style="height: 150px;">
+                        <div class="d-flex flex-column justify-content-center align-items-center h-100">
+                            <i class="fas fa-film fa-2x mb-2"></i>
+                            <small class="text-center">{{ sim.title|truncatechars:20 }}</small>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <h6 class="card-title">{{ sim.title|truncatechars:25 }}</h6>
+                        <div class="d-flex justify-content-between">
+                            <small class="text-muted">{{ sim.year }}</small>
+                            {% if sim.rating %}
+                            <span class="badge bg-warning">{{ sim.rating|floatformat:1 }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <a href="{% url 'movie_detail' sim.id %}" 
+                           class="btn btn-sm btn-outline-primary w-100">
+                            Voir détails
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .movie-poster {
+        background: linear-gradient(45deg, #2c3e50, #34495e);
+        color: white;
+        border-radius: 8px;
+    }
+    
+    .list-group-item:hover {
+        background-color: #f8f9fa;
+        transform: translateX(5px);
+        transition: all 0.2s;
+    }
+    
+    .badge {
+        font-size: 0.85em;
+    }
+    
+    .card {
+        border: none;
+        border-radius: 10px;
+    }
+    
+    .card-header {
+        border-radius: 10px 10px 0 0 !important;
+    }
+</style>
+{% endblock %}
