@@ -1,0 +1,19 @@
+Capture: test6_instructions
+Heure: 2026-01-11 15:20:22
+============================================================
+NŒUD À REDÉMARRER:
+  Nom: localhost:27017
+  Port: 27017
+  Répertoire: data/mongo/db-1
+
+COMMANDE DE REDÉMARRAGE:
+  mongod --replSet rs0 \
+    --port 27017 \
+    --dbpath ./data/mongo/db-1 \
+    --bind_ip localhost --fork \
+    --logpath ./data/mongo/mongod-27017.log
+
+POUR OBSERVER LA RESYNC:
+  tail -f logs/mongod-27017.log
+  Rechercher: 'resync', 'initial sync', 'catchup'
+============================================================

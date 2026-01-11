@@ -1,0 +1,155 @@
+Capture: test1_etat_initial
+Heure: 2026-01-11 15:17:43
+============================================================
+Primary: localhost:27017
+Secondaires: ['localhost:27018', 'localhost:27019']
+
+rs.status():
+{
+  "set": "rs0",
+  "date": "2026-01-11 14:17:43.110000",
+  "myState": 1,
+  "term": 1,
+  "syncSourceHost": "",
+  "syncSourceId": -1,
+  "heartbeatIntervalMillis": 2000,
+  "majorityVoteCount": 2,
+  "writeMajorityCount": 2,
+  "votingMembersCount": 3,
+  "writableVotingMembersCount": 3,
+  "optimes": {
+    "lastCommittedOpTime": {
+      "ts": "Timestamp(1768141058, 1)",
+      "t": 1
+    },
+    "lastCommittedWallTime": "2026-01-11 14:17:38.407000",
+    "readConcernMajorityOpTime": {
+      "ts": "Timestamp(1768141058, 1)",
+      "t": 1
+    },
+    "appliedOpTime": {
+      "ts": "Timestamp(1768141058, 1)",
+      "t": 1
+    },
+    "durableOpTime": {
+      "ts": "Timestamp(1768141058, 1)",
+      "t": 1
+    },
+    "lastAppliedWallTime": "2026-01-11 14:17:38.407000",
+    "lastDurableWallTime": "2026-01-11 14:17:38.407000"
+  },
+  "lastStableRecoveryTimestamp": "Timestamp(1768141048, 1)",
+  "electionCandidateMetrics": {
+    "lastElectionReason": "electionTimeout",
+    "lastElectionDate": "2026-01-11 14:16:48.367000",
+    "electionTerm": 1,
+    "lastCommittedOpTimeAtElection": {
+      "ts": "Timestamp(1768140997, 1)",
+      "t": -1
+    },
+    "lastSeenOpTimeAtElection": {
+      "ts": "Timestamp(1768140997, 1)",
+      "t": -1
+    },
+    "numVotesNeeded": 2,
+    "priorityAtElection": 2.0,
+    "electionTimeoutMillis": 10000,
+    "numCatchUpOps": 0,
+    "newTermStartDate": "2026-01-11 14:16:48.398000",
+    "wMajorityWriteAvailabilityDate": "2026-01-11 14:16:49.102000"
+  },
+  "members": [
+    {
+      "_id": 0,
+      "name": "localhost:27017",
+      "health": 1.0,
+      "state": 1,
+      "stateStr": "PRIMARY",
+      "uptime": 74,
+      "optime": {
+        "ts": "Timestamp(1768141058, 1)",
+        "t": 1
+      },
+      "optimeDate": "2026-01-11 14:17:38",
+      "lastAppliedWallTime": "2026-01-11 14:17:38.407000",
+      "lastDurableWallTime": "2026-01-11 14:17:38.407000",
+      "syncSourceHost": "",
+      "syncSourceId": -1,
+      "infoMessage": "",
+      "electionTime": "Timestamp(1768141008, 1)",
+      "electionDate": "2026-01-11 14:16:48",
+      "configVersion": 1,
+      "configTerm": 1,
+      "self": true,
+      "lastHeartbeatMessage": ""
+    },
+    {
+      "_id": 1,
+      "name": "localhost:27018",
+      "health": 1.0,
+      "state": 2,
+      "stateStr": "SECONDARY",
+      "uptime": 65,
+      "optime": {
+        "ts": "Timestamp(1768141058, 1)",
+        "t": 1
+      },
+      "optimeDurable": {
+        "ts": "Timestamp(1768141058, 1)",
+        "t": 1
+      },
+      "optimeDate": "2026-01-11 14:17:38",
+      "optimeDurableDate": "2026-01-11 14:17:38",
+      "lastAppliedWallTime": "2026-01-11 14:17:38.407000",
+      "lastDurableWallTime": "2026-01-11 14:17:38.407000",
+      "lastHeartbeat": "2026-01-11 14:17:42.388000",
+      "lastHeartbeatRecv": "2026-01-11 14:17:41.386000",
+      "pingMs": 0,
+      "lastHeartbeatMessage": "",
+      "syncSourceHost": "localhost:27017",
+      "syncSourceId": 0,
+      "infoMessage": "",
+      "configVersion": 1,
+      "configTerm": 1
+    },
+    {
+      "_id": 2,
+      "name": "localhost:27019",
+      "health": 1.0,
+      "state": 2,
+      "stateStr": "SECONDARY",
+      "uptime": 65,
+      "optime": {
+        "ts": "Timestamp(1768141058, 1)",
+        "t": 1
+      },
+      "optimeDurable": {
+        "ts": "Timestamp(1768141058, 1)",
+        "t": 1
+      },
+      "optimeDate": "2026-01-11 14:17:38",
+      "optimeDurableDate": "2026-01-11 14:17:38",
+      "lastAppliedWallTime": "2026-01-11 14:17:38.407000",
+      "lastDurableWallTime": "2026-01-11 14:17:38.407000",
+      "lastHeartbeat": "2026-01-11 14:17:42.388000",
+      "lastHeartbeatRecv": "2026-01-11 14:17:41.387000",
+      "pingMs": 0,
+      "lastHeartbeatMessage": "",
+      "syncSourceHost": "localhost:27017",
+      "syncSourceId": 0,
+      "infoMessage": "",
+      "configVersion": 1,
+      "configTerm": 1
+    }
+  ],
+  "ok": 1.0,
+  "$clusterTime": {
+    "clusterTime": "Timestamp(1768141058, 1)",
+    "signature": {
+      "hash": "b'\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00'",
+      "keyId": 0
+    }
+  },
+  "operationTime": "Timestamp(1768141058, 1)"
+}
+============================================================

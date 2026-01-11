@@ -1,0 +1,7 @@
+Capture: test5_lecture
+Heure: 2026-01-11 15:20:20
+============================================================
+LECTURE DEPUIS SECONDARY: localhost:27018
+DOCUMENTS ACCESSIBLES: 3
+TEST RÉUSSI: OUI
+============================================================

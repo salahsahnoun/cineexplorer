@@ -1,7 +1,7 @@
 {
   "projet": "T3.2 - Tests tolérance aux pannes",
-  "date": "2026-01-01T20:47:57.482736",
-  "duree": "1:12:57.228954",
+  "date": "2026-01-11T15:17:43.094781",
+  "duree": "0:02:54.266710",
   "resultats": {
     "test1": {
       "status": "SUCCÈS",
@@ -10,58 +10,58 @@
         "localhost:27018",
         "localhost:27019"
       ],
-      "screenshot": "capture_test1_etat_initial_20260101_204757.txt",
+      "screenshot": "capture/capture_test1_etat_initial_20260111_151743.txt",
       "observation": "Cluster opérationnel avec 3 membres"
     },
     "test2": {
       "status": "SUCCÈS",
       "documents_insertes": 3,
       "replication_complete": true,
-      "screenshot": "capture_test2_ecriture_20260101_204804.txt",
+      "screenshot": "capture/capture_test2_ecriture_20260111_151750.txt",
       "observation": "Écriture réussie, réplication OK"
     },
     "test3": {
       "status": "MANUEL",
       "primary_stoppe": "localhost:27017",
-      "instructions": "capture_test3_instructions_20260101_204806.txt",
+      "instructions": "capture/capture_test3_instructions_20260111_151752.txt",
       "observation": "Primary localhost:27017 arrêté manuellement (Ctrl+C)"
     },
     "test4": {
       "status": "MANUEL",
       "temps_election": 5.0,
-      "nouveau_primary": "localhost:27018",
+      "nouveau_primary": "localhost:27017",
       "donnees_accessibles": "OK",
-      "screenshot": "capture_test4_nouveau_primary_20260101_205652.txt",
+      "screenshot": "capture/capture_test4_nouveau_primary_20260111_152018.txt",
       "observation": "Élection: 5.0s, Données: OK"
     },
     "test5": {
       "status": "SUCCÈS",
-      "secondary": "localhost:27017",
+      "secondary": "localhost:27018",
       "documents_accessibles": 3,
-      "screenshot": "capture_test5_lecture_20260101_205654.txt",
+      "screenshot": "capture/capture_test5_lecture_20260111_152020.txt",
       "observation": "Données accessibles depuis Secondary: 3 documents"
     },
     "test6": {
       "status": "MANUEL",
       "node_redemarre": "localhost:27017",
-      "instructions": "capture_test6_instructions_20260101_205656.txt",
+      "instructions": "capture/capture_test6_instructions_20260111_152022.txt",
       "observation": "Nœud localhost:27017 redémarré, resync observée"
     },
     "test7": {
       "status": "MANUEL",
       "scenario": "Double panne - 2 nœuds arrêtés",
-      "observations": "Lors du Test 7 (Double Panne), le quorum est perdu car il ne reste qu'un seul nœud actif sur trois (1/3), alors que la majorité requise est de 2. En conséquence : 1) Le nœud survivant (27017) bascule automatiquement de PRIMARY à SECONDARY pour protéger l'intégrité des données. 2) Les écritures sont désormais impossibles (erreur NotWritablePrimary), ce qui prouve que MongoDB privilégie la Cohérence sur la Disponibilité en cas de partition réseau. 3) Les lectures sont toujours possibles mais le nœud ne peut plus garantir qu'il possède les dernières données du cluster.",
-      "screenshot": "capture_test7_scenario_20260101_211605.txt",
+      "observations": "",
+      "screenshot": "capture/capture_test7_scenario_20260111_152030.txt",
       "observation": "Test manuel de double panne effectué"
     }
   },
   "captures": [
-    "capture_test1_etat_initial_20260101_204757.txt",
-    "capture_test2_ecriture_20260101_204804.txt",
-    "capture_test3_instructions_20260101_204806.txt",
-    "capture_test4_nouveau_primary_20260101_205652.txt",
-    "capture_test5_lecture_20260101_205654.txt",
-    "capture_test6_instructions_20260101_205656.txt",
-    "capture_test7_scenario_20260101_211605.txt"
+    "capture/capture_test1_etat_initial_20260111_151743.txt",
+    "capture/capture_test2_ecriture_20260111_151750.txt",
+    "capture/capture_test3_instructions_20260111_151752.txt",
+    "capture/capture_test4_nouveau_primary_20260111_152018.txt",
+    "capture/capture_test5_lecture_20260111_152020.txt",
+    "capture/capture_test6_instructions_20260111_152022.txt",
+    "capture/capture_test7_scenario_20260111_152030.txt"
   ]
 }

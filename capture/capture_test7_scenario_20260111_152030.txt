@@ -1,0 +1,20 @@
+Capture: test7_scenario
+Heure: 2026-01-11 15:20:30
+============================================================
+SCÉNARIO DOUBLE PANNE:
+  • Arrêter 2 nœuds mongod
+  • Il ne reste qu'1 nœud actif
+  • Plus de majorité (2/3) disponible
+
+COMPORTEMENT ATTENDU:
+  • Pas d'élection possible
+  • Cluster en mode lecture seule
+  • Écritures impossibles
+  • Lectures possibles (si nœud restant actif)
+
+QUESTIONS À OBSERVER:
+  1. Combien de temps pour détecter la perte de quorum?
+  2. Les lectures fonctionnent-elles?
+  3. Que se passe-t-il si on tente d'écrire?
+  4. Comment le cluster réagit-il?
+============================================================
