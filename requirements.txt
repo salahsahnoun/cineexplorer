@@ -1,0 +1,62 @@
+# ============================================
+# requirements.txt
+# Projet: CinéExplorer - Plateforme Web de Films
+# Module: 4A-BDA - Bases de Données Avancées
+# Année: 2025-2026
+# ============================================
+
+# =======================
+# PAQUETS ESSENTIELS
+# =======================
+
+# Framework web principal
+django>=4.2
+
+# Connexion à MongoDB
+pymongo>=4.5
+
+# Manipulation et analyse de données
+pandas>=2.0
+
+# Barres de progression pour les scripts
+tqdm>=4.65
+
+
+# =======================
+# INTERFACE UTILISATEUR DJANGO
+# =======================
+
+# Filtres avancés pour les listes
+django-filter>=23.0
+
+# Rendu amélioré des formulaires
+django-crispy-forms>=2.0
+
+# Templates Bootstrap 5 pour crispy forms
+crispy-bootstrap5>=2023.0
+
+
+# =======================
+# VISUALISATION DE DONNÉES
+# =======================
+
+# Création de graphiques et visualisations
+matplotlib>=3.7
+
+
+# =======================
+# NOTES D'INSTALLATION
+# =======================
+
+# 1. Installation complète :
+#    pip install -r requirements.txt
+#
+# 2. Vérification des paquets installés :
+#    pip list
+#
+# 3. Installation manuelle des paquets manquants :
+#    pip install django-filter django-crispy-forms crispy-bootstrap5
+#
+# 4. Démarrage du projet :
+#    - Si les données sont déjà importées : ./startup.sh
+#    - Sinon : ./start_with_import.sh
