@@ -1,149 +1,135 @@
 #!/bin/bash
-# setup_replica.sh - Configuration automatique du Replica Set MongoDB
+# scripts/phase3_replica/setup_replica.sh - Version améliorée
 
-echo "============================================================"
-echo "🚀 CONFIGURATION AUTOMATIQUE DU REPLICA SET - Phase 3"
-echo "============================================================"
+set -e  # Arrêter sur erreur
+
+echo "========================================="
+echo "🚀 CONFIGURATION AUTOMATIQUE REPLICA SET"
+echo "========================================="
 
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 MONGO_DIR="$BASE_DIR/data/mongo"
 
-# 1. Arrêter les instances existantes
-echo "🛑 Arrêt des instances MongoDB existantes..."
-pkill -9 mongod 2>/dev/null
-sleep 5
+# 1. Arrêt propre des instances
+echo "🛑 Arrêt des instances MongoDB du projet..."
+if pgrep -f "mongod.*replSet.*rs0" > /dev/null; then
+    echo "   Arrêt en cours..."
+    pkill -f "mongod.*replSet.*rs0" || true
+    sleep 3
+    # Kill forcé si nécessaire
+    if pgrep -f "mongod.*replSet.*rs0" > /dev/null; then
+        echo "   Arrêt forcé..."
+        pkill -9 -f "mongod.*replSet.*rs0" || true
+    fi
+fi
 
-# 2. Nettoyer et créer les répertoires
-echo "📁 Nettoyage des répertoires de données..."
-rm -rf "$MONGO_DIR/db-1" "$MONGO_DIR/db-2" "$MONGO_DIR/db-3" 2>/dev/null
-mkdir -p "$MONGO_DIR/db-1" "$MONGO_DIR/db-2" "$MONGO_DIR/db-3"
+# 2. Nettoyage sélectif des sockets
+echo "🧹 Nettoyage des fichiers temporaires..."
+rm -f /tmp/mongodb-27017.sock /tmp/mongodb-27018.sock /tmp/mongodb-27019.sock 2>/dev/null || true
 
-# 3. Démarrer les instances SANS --fork (pour voir les logs)
-echo "🚀 Démarrage des 3 instances MongoDB (sans fork)..."
-echo "⚠️  Ouvre 3 terminaux séparés et exécute:"
-echo ""
-echo "Terminal 1:"
-echo "  mongod --replSet rs0 --port 27017 --dbpath $MONGO_DIR/db-1 --bind_ip localhost"
-echo ""
-echo "Terminal 2:"
-echo "  mongod --replSet rs0 --port 27018 --dbpath $MONGO_DIR/db-2 --bind_ip localhost"
-echo ""
-echo "Terminal 3:"
-echo "  mongod --replSet rs0 --port 27019 --dbpath $MONGO_DIR/db-3 --bind_ip localhost"
-echo ""
-echo "⏳ Attends que les 3 affichent: 'waiting for connections on port...'"
-echo "Puis passe à l'étape suivante."
-echo ""
-read -p "✅ Les 3 instances sont démarrées ? (Appuie sur Entrée) "
+# 3. Préparation des répertoires
+echo "📁 Création des répertoires de données..."
+rm -rf "$MONGO_DIR/db1" "$MONGO_DIR/db2" "$MONGO_DIR/db3" 2>/dev/null || true
+mkdir -p "$MONGO_DIR/db1" "$MONGO_DIR/db2" "$MONGO_DIR/db3"
 
-# 4. Initialiser le Replica Set
+# 4. Lancement des instances
+echo "🚀 Lancement des 3 instances MongoDB..."
+for port in 27017 27018 27019; do
+    db_index=$((port - 27016))
+    mongod --replSet rs0 \
+           --port $port \
+           --dbpath "$MONGO_DIR/db$db_index" \
+           --bind_ip localhost \
+           --fork \
+           --logpath "$MONGO_DIR/db$db_index/mongod.log" \
+           --logappend
+    echo "   ✅ Instance $port démarrée"
+    sleep 2  # Attente entre les démarrages
+done
+
+# 5. Attente que les instances soient prêtes
+echo "⏳ Attente que MongoDB soit prêt (10s)..."
+sleep 10
+
+# 6. Initialisation du Replica Set
 echo "⚙️  Initialisation du Replica Set..."
 mongosh --port 27017 --quiet --eval "
-print('⏳ Attente que MongoDB soit prêt...');
-sleep(5000);
-
 try {
-    print('Initialisation du Replica Set...');
-    var result = rs.initiate({
-        _id: 'rs0',
-        members: [
-            { _id: 0, host: 'localhost:27017' },
-            { _id: 1, host: 'localhost:27018' },
-            { _id: 2, host: 'localhost:27019' }
-        ]
-    });
+    print('Initialisation en cours...');
     
-    if (result.ok === 1) {
-        print('✅ Replica Set initialisé avec succès');
-        print('⏳ Attente de l\\'élection du Primary (peut prendre 30-60s)...');
+    // Vérifier si déjà initialisé
+    try {
+        var status = rs.status();
+        print('⚠️  Replica Set déjà configuré');
+    } catch (e) {
+        // Pas encore initialisé
+        var result = rs.initiate({
+            _id: 'rs0',
+            members: [
+                { _id: 0, host: 'localhost:27017' },
+                { _id: 1, host: 'localhost:27018' },
+                { _id: 2, host: 'localhost:27019' }
+            ]
+        });
         
-        // Attendre l'élection
-        for (var i = 0; i < 12; i++) {
-            sleep(5000);
+        if (result.ok === 1) {
+            print('✅ Replica Set initialisé');
+        } else {
+            print('❌ Erreur: ' + JSON.stringify(result));
+            quit(1);
+        }
+    }
+    
+    // Attendre l'élection
+    print('⏳ Attente élection Primary (peut prendre 30s)...');
+    for (var i = 0; i < 30; i++) {
+        sleep(1000);
+        try {
             var status = rs.status();
-            var primary = status.members.find(function(m) { 
-                return m.stateStr === 'PRIMARY'; 
-            });
-            
+            var primary = status.members.find(m => m.stateStr === 'PRIMARY');
             if (primary) {
                 print('🎉 Primary élu: ' + primary.name);
-                print('📊 Secondaires: ' + status.members.filter(function(m) {
-                    return m.stateStr === 'SECONDARY';
-                }).length);
+                print('📊 Statut membres:');
+                status.members.forEach(m => {
+                    print('   ' + (m.health === 1 ? '✅' : '❌') + ' ' + 
+                          (m.stateStr === 'PRIMARY' ? '👑 ' : '   ') + 
+                          m.name + ' : ' + m.stateStr);
+                });
                 break;
             }
-            
-            if (i < 11) {
-                print('⏳ Attente élection... ' + ((i+1)*5) + 's');
-            } else {
-                print('⚠️  Aucun Primary élu après 60s');
-            }
+        } catch(e) {}
+        
+        if (i === 29) {
+            print('⚠️  Élection lente, vérifiez les logs');
         }
-    } else {
-        print('❌ Erreur initialisation: ' + JSON.stringify(result));
     }
-} catch (e) {
-    print('❌ Erreur: ' + e.message);
+    
+} catch (error) {
+    print('❌ Erreur critique: ' + error.message);
+    quit(1);
 }
 "
 
-# 5. Vérifier le statut
-echo "📊 Vérification du statut final..."
+# 7. Vérification finale
+echo "🔍 Vérification finale..."
 mongosh --port 27017 --quiet --eval "
 try {
     var status = rs.status();
     print('✅ Replica Set opérationnel');
-    
-    status.members.forEach(function(member) {
-        var icon = member.health === 1 ? '✅' : '❌';
-        var role = member.stateStr === 'PRIMARY' ? '👑 ' : '   ';
-        print(icon + role + member.name + ' : ' + member.stateStr);
-    });
-} catch (e) {
-    print('❌ Impossible de récupérer le statut: ' + e.message);
+    print('👑 Primary: ' + (status.members.find(m => m.stateStr === 'PRIMARY')?.name || 'N/A'));
+    print('📈 Secondaires: ' + status.members.filter(m => m.stateStr === 'SECONDARY').length);
+} catch(e) {
+    print('❌ Impossible de vérifier: ' + e.message);
 }
 "
 
-# 6. Import optionnel
-if [ "$1" == "--import" ]; then
-    echo "📥 Import des données..."
-    python3 -c "
-from pymongo import MongoClient
-import time
-
-print('Connexion au Replica Set...')
-client = MongoClient('localhost:27017,localhost:27018,localhost:27019', 
-                     replicaSet='rs0', 
-                     serverSelectionTimeoutMS=30000)
-
-# Attendre que le Primary soit disponible
-for i in range(10):
-    try:
-        client.admin.command('ping')
-        print('✅ Connecté au Replica Set')
-        break
-    except:
-        print(f'⏳ Tentative {i+1}/10...')
-        time.sleep(3)
-
-# Vérifier le Primary
-try:
-    is_master = client.admin.command('isMaster')
-    print(f\"Primary: {is_master.get('primary', 'N/A')}\")
-    
-    # Importer des données de test
-    db = client['imdb_replica']
-    db.test.insert_one({'message': 'Test import', 'time': time.time()})
-    print('✅ Test d\\'écriture réussi')
-    
-except Exception as e:
-    print(f'❌ Erreur: {e}')
-
-client.close()
-"
-fi
-
 echo ""
-echo "============================================================"
+echo "========================================="
 echo "✅ CONFIGURATION TERMINÉE !"
-echo "============================================================"
+echo "========================================="
+echo ""
+echo "📋 Commandes utiles:"
+echo "   mongosh --port 27017          # Se connecter au Primary"
+echo "   rs.status()                   # Voir statut Replica Set"
+echo "   tail -f data/mongo/db1/mongod.log  # Voir logs"
+echo ""

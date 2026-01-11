@@ -218,28 +218,81 @@ def movie_list_view(request):
     return render(request, 'movies/list.html', context)
 
 def movie_detail_view(request, movie_id):
-    """Détail d'un film spécifique depuis MongoDB"""
-    # Essayer de récupérer le film depuis MongoDB
-    movie = mongo_service.get_complete_movie(movie_id)
+    """Détail d'un film avec casting complet"""
+    movie = None
+    source = None
     
-    # Si pas dans MongoDB, chercher dans SQLite
+    print(f"\n=== CHARGEMENT FILM {movie_id} ===")
+    
+    # 1. Essayer MongoDB d'abord
+    try:
+        movie = mongo_service.get_complete_movie_with_characters(movie_id)
+        if movie and movie.get('cast'):
+            source = 'MongoDB'
+            print(f"✓ Film trouvé dans MongoDB avec {len(movie['cast'])} acteurs")
+        elif movie:
+            source = 'MongoDB'
+            print(f"⚠ Film trouvé dans MongoDB mais sans casting ({len(movie.get('cast', []))} acteurs)")
+        else:
+            print(f"✗ Film non trouvé dans MongoDB")
+    except Exception as e:
+        print(f"Erreur MongoDB: {e}")
+    
+    # 2. Si pas dans MongoDB ou sans casting, essayer SQLite
+    if not movie or not movie.get('cast'):
+        movie = sqlite_service.get_movie_with_characters(movie_id)
+        if movie and movie.get('cast'):
+            source = 'SQLite'
+            print(f"✓ Film trouvé dans SQLite avec {len(movie['cast'])} acteurs")
+        elif movie:
+            source = 'SQLite' 
+            print(f"⚠ Film trouvé dans SQLite mais sans casting")
+        else:
+            print(f"✗ Film non trouvé dans SQLite")
+    
+    # 3. Si toujours pas trouvé, retourner erreur
     if not movie:
-        movie = sqlite_service.get_movie_basic_info(movie_id)
+        from django.http import Http404
+        raise Http404(f"Film avec l'ID {movie_id} non trouvé")
     
-    # Films similaires (même genres)
-    similar_movies = []
-    if movie and 'genres' in movie:
-        similar_movies = sqlite_service.get_similar_movies(
-            movie_id, 
-            genres=movie.get('genres', []),
-            limit=4
-        )
+    # 4. Assurer que tous les champs existent
+    movie.setdefault('cast', [])
+    movie.setdefault('directors', [])
+    movie.setdefault('writers', [])
+    movie.setdefault('titles', [])
+    movie.setdefault('genres', [])
+    movie.setdefault('rating', None)
+    movie.setdefault('votes', None)
+    movie.setdefault('runtime', None)
+    movie.setdefault('language', 'en')
+    movie.setdefault('isAdult', False)
+    movie.setdefault('description', '')
     
+    # 5. Statistiques de casting
+    casting_stats = {
+        'total_actors': len(movie['cast']),
+        'actors_with_characters': sum(1 for actor in movie['cast'] if actor.get('characters')),
+        'total_characters': sum(len(actor.get('characters', [])) for actor in movie['cast'])
+    }
+    
+    print(f"📊 Statistiques casting: {casting_stats}")
+    
+    # 6. Films similaires
+    similar_movies = sqlite_service.get_similar_movies_sqlite(
+        movie_id,
+        genres=movie.get('genres', []),
+        directors=movie.get('directors', []),
+        limit=4
+    )
+    
+    # 7. Préparer le contexte
     context = {
         'movie': movie,
         'movie_id': movie_id,
         'similar_movies': similar_movies,
-        'title': movie.get('title', 'Détail du film') if movie else 'Film non trouvé'
+        'source': source,
+        'casting_stats': casting_stats,
+        'title': f"{movie.get('title', 'Détail du film')} - CinéExplorer"
     }
     
     return render(request, 'movies/detail.html', context)

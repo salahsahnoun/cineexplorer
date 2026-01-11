@@ -16,7 +16,161 @@ def get_sqlite_connection():
     conn = sqlite3.connect(str(db_path))
     conn.row_factory = sqlite3.Row  # Retourne des dictionnaires
     return conn
-
+def get_movie_with_characters(movie_id):
+    """Récupère un film avec casting et personnages depuis SQLite"""
+    try:
+        conn = get_sqlite_connection()
+        cursor = conn.cursor()
+        
+        # 1. Informations de base du film
+        cursor.execute("""
+            SELECT 
+                m.mid,
+                m.primaryTitle,
+                m.startYear,
+                m.runtimeMinutes,
+                m.titleType,
+                m.language,
+                m.isAdult,
+                r.averageRating,
+                r.numVotes
+            FROM movies m
+            LEFT JOIN ratings r ON m.mid = r.mid
+            WHERE m.mid = ?
+        """, (movie_id,))
+        
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return None
+        
+        movie = {
+            'id': row['mid'],
+            'title': row['primaryTitle'],
+            'year': row['startYear'],
+            'runtime': row['runtimeMinutes'],
+            'titleType': row['titleType'],
+            'language': row['language'],
+            'isAdult': bool(row['isAdult']),
+            'rating': row['averageRating'],
+            'votes': row['numVotes'],
+            'genres': [],
+            'cast': [],
+            'directors': [],
+            'writers': [],
+            'titles': []
+        }
+        
+        # 2. Genres
+        cursor.execute("SELECT genre FROM genres WHERE mid = ?", (movie_id,))
+        movie['genres'] = [row[0] for row in cursor.fetchall()]
+        
+        # 3. Réalisateurs
+        cursor.execute("""
+            SELECT p.pid, p.primaryName, p.birthYear
+            FROM directors d
+            JOIN persons p ON d.pid = p.pid
+            WHERE d.mid = ?
+        """, (movie_id,))
+        for row in cursor.fetchall():
+            movie['directors'].append({
+                'id': row['pid'],
+                'name': row['primaryName'],
+                'birthYear': row['birthYear']
+            })
+        
+        # 4. Scénaristes
+        cursor.execute("""
+            SELECT p.pid, p.primaryName, w.category
+            FROM writers w
+            JOIN persons p ON w.pid = p.pid
+            WHERE w.mid = ?
+        """, (movie_id,))
+        for row in cursor.fetchall():
+            movie['writers'].append({
+                'id': row['pid'],
+                'name': row['primaryName'],
+                'category': row['category']
+            })
+        
+        # 5. CASTING COMPLET AVEC PERSONNAGES
+        cursor.execute("""
+            SELECT 
+                p.pid,
+                p.primaryName,
+                p.birthYear,
+                p.deathYear,
+                pr.category,
+                pr.ordering
+            FROM principals pr
+            JOIN persons p ON pr.pid = p.pid
+            WHERE pr.mid = ?
+            ORDER BY pr.ordering
+        """, (movie_id,))
+        
+        principals = cursor.fetchall()
+        
+        for principal in principals:
+            pid = principal['pid']
+            
+            # Récupérer les personnages
+            cursor.execute("""
+                SELECT character 
+                FROM characters 
+                WHERE mid = ? AND pid = ?
+            """, (movie_id, pid))
+            
+            characters = [row['character'] for row in cursor.fetchall()]
+            
+            # Si pas de personnages dans characters, essayer depuis principals
+            if not characters:
+                # Vérifier si characters est stocké dans principals
+                cursor.execute("PRAGMA table_info(principals)")
+                columns = [col[1] for col in cursor.fetchall()]
+                
+                if 'characters' in columns:
+                    cursor.execute("SELECT characters FROM principals WHERE mid = ? AND pid = ?", 
+                                 (movie_id, pid))
+                    chars_row = cursor.fetchone()
+                    if chars_row and chars_row['characters']:
+                        characters = [chars_row['characters']]
+            
+            # Créer l'entrée de casting
+            cast_member = {
+                'id': pid,
+                'name': principal['primaryName'],
+                'characters': characters,
+                'ordering': principal['ordering'],
+                'category': principal['category'],
+                'birthYear': principal['birthYear'],
+                'deathYear': principal['deathYear']
+            }
+            
+            movie['cast'].append(cast_member)
+        
+        # 6. Titres alternatifs
+        cursor.execute("""
+            SELECT region, title, language
+            FROM titles
+            WHERE mid = ? AND title != ?
+        """, (movie_id, movie['title']))
+        
+        for row in cursor.fetchall():
+            movie['titles'].append({
+                'region': row['region'],
+                'title': row['title'],
+                'language': row['language']
+            })
+        
+        conn.close()
+        return movie
+        
+    except Exception as e:
+        print(f"Erreur dans get_movie_with_characters: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+        
 def get_movie_stats():
     """Récupère des statistiques depuis SQLite"""
     try:
@@ -426,3 +580,76 @@ def test_sqlite_connection():
         return True
     except Exception as e:
         return False
+
+def get_similar_movies_sqlite(movie_id, genres=None, directors=None, limit=4):
+    """Récupère des films similaires depuis SQLite"""
+    try:
+        conn = get_sqlite_connection()
+        cursor = conn.cursor()
+        
+        similar_movies = []
+        
+        # Si on a des genres, chercher des films avec les mêmes genres
+        if genres:
+            placeholders = ','.join(['?' for _ in genres])
+            query = f"""
+                SELECT DISTINCT m.mid as id, m.primaryTitle as title, m.startYear as year
+                FROM movies m
+                JOIN genres g ON m.mid = g.mid
+                WHERE g.genre IN ({placeholders})
+                  AND m.mid != ?
+                  AND m.titleType = 'movie'
+                LIMIT ?
+            """
+            params = genres + [movie_id, limit * 2]
+            cursor.execute(query, params)
+            
+            for row in cursor.fetchall():
+                similar_movies.append(dict(row))
+        
+        # Si pas assez, chercher par réalisateur
+        if len(similar_movies) < limit and directors:
+            director_ids = [d.get('id') for d in directors if d.get('id')]
+            if director_ids:
+                placeholders = ','.join(['?' for _ in director_ids])
+                query = f"""
+                    SELECT DISTINCT m.mid as id, m.primaryTitle as title, m.startYear as year
+                    FROM movies m
+                    JOIN directors d ON m.mid = d.mid
+                    WHERE d.pid IN ({placeholders})
+                      AND m.mid != ?
+                      AND m.titleType = 'movie'
+                    LIMIT ?
+                """
+                params = director_ids + [movie_id, limit - len(similar_movies)]
+                cursor.execute(query, params)
+                
+                for row in cursor.fetchall():
+                    similar_movies.append(dict(row))
+        
+        # Si toujours pas assez, prendre des films aléatoires
+        if len(similar_movies) < limit:
+            query = """
+                SELECT m.mid as id, m.primaryTitle as title, m.startYear as year
+                FROM movies m
+                WHERE m.mid != ? AND m.titleType = 'movie'
+                ORDER BY RANDOM()
+                LIMIT ?
+            """
+            cursor.execute(query, (movie_id, limit - len(similar_movies)))
+            
+            for row in cursor.fetchall():
+                similar_movies.append(dict(row))
+        
+        # Ajouter les notes
+        for movie in similar_movies:
+            cursor.execute("SELECT averageRating FROM ratings WHERE mid = ?", (movie['id'],))
+            rating_row = cursor.fetchone()
+            movie['rating'] = rating_row[0] if rating_row else None
+        
+        conn.close()
+        return similar_movies[:limit]
+        
+    except Exception as e:
+        print(f"Erreur dans get_similar_movies_sqlite: {e}")
+        return []
