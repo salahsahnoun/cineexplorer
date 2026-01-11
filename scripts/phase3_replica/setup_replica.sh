@@ -29,8 +29,8 @@ rm -f /tmp/mongodb-27017.sock /tmp/mongodb-27018.sock /tmp/mongodb-27019.sock 2>
 
 # 3. Préparation des répertoires
 echo "📁 Création des répertoires de données..."
-rm -rf "$MONGO_DIR/db1" "$MONGO_DIR/db2" "$MONGO_DIR/db3" 2>/dev/null || true
-mkdir -p "$MONGO_DIR/db1" "$MONGO_DIR/db2" "$MONGO_DIR/db3"
+rm -rf "$MONGO_DIR/db-1" "$MONGO_DIR/db-2" "$MONGO_DIR/db-3" 2>/dev/null || true
+mkdir -p "$MONGO_DIR/db-1" "$MONGO_DIR/db-2" "$MONGO_DIR/db-3"
 
 # 4. Lancement des instances
 echo "🚀 Lancement des 3 instances MongoDB..."
@@ -131,5 +131,5 @@ echo ""
 echo "📋 Commandes utiles:"
 echo "   mongosh --port 27017          # Se connecter au Primary"
 echo "   rs.status()                   # Voir statut Replica Set"
-echo "   tail -f data/mongo/db1/mongod.log  # Voir logs"
+echo "   tail -f data/mongo/db-1/mongod.log  # Voir logs"
 echo ""

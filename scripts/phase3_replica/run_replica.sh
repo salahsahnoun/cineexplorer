@@ -38,15 +38,15 @@ done
 # 5. Démarrer les instances
 echo "5. Démarrage des instances..."
 echo "   Port 27017..."
-mongod --replSet rs0 --port 27017 --dbpath ./data/mongo/db1 --bind_ip 127.0.0.1,localhost --fork --logpath ./data/mongo/db1/mongod.log
+mongod --replSet rs0 --port 27017 --dbpath ./data/mongo/db-1 --bind_ip 127.0.0.1,localhost --fork --logpath ./data/mongo/db-1/mongod.log
 sleep 2
 
 echo "   Port 27018..."
-mongod --replSet rs0 --port 27018 --dbpath ./data/mongo/db2 --bind_ip 127.0.0.1,localhost --fork --logpath ./data/mongo/db2/mongod.log
+mongod --replSet rs0 --port 27018 --dbpath ./data/mongo/db-2 --bind_ip 127.0.0.1,localhost --fork --logpath ./data/mongo/db-2/mongod.log
 sleep 2
 
 echo "   Port 27019..."
-mongod --replSet rs0 --port 27019 --dbpath ./data/mongo/db3 --bind_ip 127.0.0.1,localhost --fork --logpath ./data/mongo/db3/mongod.log
+mongod --replSet rs0 --port 27019 --dbpath ./data/mongo/db-3 --bind_ip 127.0.0.1,localhost --fork --logpath ./data/mongo/db-3/mongod.log
 sleep 2
 
 # 6. Attendre que MongoDB soit vraiment prêt
@@ -65,7 +65,7 @@ if mongosh --port 27017 --quiet --eval "db.adminCommand('ping')" 2>/dev/null; th
 else
     echo "=== ❌ ÉCHEC ==="
     echo "MongoDB ne répond pas. Vérifiez:"
-    echo "1. Les logs: tail -f ./data/mongo/db1/mongod.log"
+    echo "1. Les logs: tail -f ./data/mongo/db-1/mongod.log"
     echo "2. Si les ports sont libres: netstat -tulpn | grep :2701"
     echo "3. Si MongoDB est installé: mongod --version"
     exit 1
